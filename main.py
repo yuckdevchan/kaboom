@@ -1,44 +1,54 @@
-import os, pathlib, subprocess
-import win32com.client as win32
-from pathlib import Path
+import sys
+from PySide6.QtCore import Qt, Slot
+from PySide6 import QtCore, QtWidgets, QtGui
 
-def current_user() -> str:
-    return os.getlogin()
+from utils import list_programs, narrow_down, determine_program
 
-def launch_program(program):
-        print(program)
-        subprocess.Popen(program)
+class MyWidget(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
 
-def list_programs(directories: list) -> list:
-    lnk_files = []
-    for directory in directories:
-        for root, dirs, files in os.walk(directory):
-            for file in files:
-                if file.endswith(".lnk"):
-                    relative_path = Path(root).relative_to(directory)
-                    lnk_files.append(str(Path(relative_path) / file))
-    return lnk_files
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.textbox = QtWidgets.QLineEdit(self)
+        self.label = QtWidgets.QLabel(self)
+        self.layout.addWidget(self.textbox)
+        self.layout.addWidget(self.label)
+        self.textbox.textChanged.connect(self.on_text_changed)
+        self.textbox.returnPressed.connect(self.on_enter_pressed)
+        program_list = list_programs()
+        text = ""
+        for i in range(len(program_list)):
+            text += program_list[i] + "\n"
+        self.change_text(text)
 
-def run_shortcut(shortcut: str):
-    shell = win32.Dispatch("WScript.Shell")
-    shortcut = shell.CreateShortCut(shortcut)
-    launch_program(shortcut.Targetpath)
+    @QtCore.Slot()
+    def on_text_changed(self, text):
+        narrowed_list = narrow_down(text)
+        new_text = ""
+        for i in range(len(narrowed_list)):
+            new_text += narrowed_list[i] + "\n"
+        print(new_text)
+        self.change_text(new_text)
 
-def cli():
-    program_list = list_programs(directories)
-    for i in range(0, len(program_list)):
-        if program_list[i] == "Immersive Control Panel.lnk":
-            program_display_name = "Control Panel"
+    @QtCore.Slot()
+    def change_text(self, text):
+        self.label.setText(text)
+        self.label.setFixedHeight(200)
+
+    @QtCore.Slot()
+    def on_enter_pressed(self):
+        print("Enter pressed")
+        if self.textbox.text() == "exit":
+            sys.exit()
         else:
-            program_display_name = program_list[i].split(".lnk")[0]
-            program_display_name = program_display_name.split("\\")[-1]
-        print(f"{i + 1}. {program_display_name}")
-    chosen_program = input("Enter program index: ")
-    run_shortcut(f"C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\{program_list[int(chosen_program) - 1]}")
+            determine_program(self.textbox.text())
 
-directories = [
-    'C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs',
-    f'C:\\Users\\{current_user()}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs'
-]
+if __name__ == "__main__":
+    app = QtWidgets.QApplication([])
 
-cli()
+    widget = MyWidget()
+    widget.resize(600, 1)
+    widget.setWindowFlags(Qt.FramelessWindowHint)
+    widget.show()
+
+    sys.exit(app.exec())
