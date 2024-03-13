@@ -1,24 +1,22 @@
-from global_hotkeys import *
-import time, sys, subprocess
+import keyboard, sys, subprocess, win32gui, win32process, os
 
-# Define the function to be called when hotkey is pressed
-def on_activate():
-    print("Windows+Space pressed!")
-    subprocess.run([sys.executable, "main.py"])
+open = False
 
-# Define a dummy function for the release_callback
-def on_release():
-    pass
+def run():
+    global open
+    if not open:
+        subprocess.Popen([sys.executable, "main.py"])
+        open = True
+    elif open:
+        # Find the window with the title 'kaboom'
+        hwnd = win32gui.FindWindow(None, 'kaboom')
+        if hwnd:
+            # Get the process ID associated with the window
+            _, pid = win32process.GetWindowThreadProcessId(hwnd)
+            # Use os.kill to send a termination signal to the process
+            os.kill(pid, 9)
+        open = False
 
-# Define the hotkey
-hotkey = ("window+space", on_activate, on_release)
+keyboard.add_hotkey('alt + d', run)
 
-# Register the hotkey
-register_hotkey(*hotkey)
-
-# Start the event loop
-start_checking_hotkeys()
-
-# Keep the script running
-while True:
-    pass
+keyboard.wait()
