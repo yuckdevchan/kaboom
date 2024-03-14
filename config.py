@@ -1,6 +1,9 @@
 # Theme Customization
 dark_mode = True
 
+# Hotkeys
+hotkey = "shift + left shift"
+
 # Font Customization
 font_family = "Segoe UI"
 font_size = 10

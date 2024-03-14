@@ -1,22 +1,17 @@
-import keyboard, sys, subprocess, win32gui, win32process, os
+import keyboard, sys, subprocess, win32gui, win32con, win32process, os, config
 
-open = False
+open_ = False
 
 def run():
-    global open
-    if not open:
-        subprocess.Popen([sys.executable, "main.py"])
-        open = True
-    elif open:
-        # Find the window with the title 'kaboom'
-        hwnd = win32gui.FindWindow(None, 'kaboom')
-        if hwnd:
-            # Get the process ID associated with the window
-            _, pid = win32process.GetWindowThreadProcessId(hwnd)
-            # Use os.kill to send a termination signal to the process
-            os.kill(pid, 9)
-        open = False
+    global open_
+    hwnd = win32gui.FindWindow(None, config.program_title)
+    if not open_:
+        open_ = True
+        win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+    elif open_:
+        win32gui.ShowWindow(hwnd, win32con.SW_HIDE)
+        open_ = False
 
-keyboard.add_hotkey('alt + d', run)
-
+keyboard.add_hotkey(config.hotkey, run)
+subprocess.Popen([sys.executable, "main.py"])
 keyboard.wait()
