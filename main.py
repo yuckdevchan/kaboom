@@ -1,4 +1,4 @@
-import sys, win32gui, win32con, keyboard, toml, os
+import sys, keyboard, toml, os
 from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon, QPainterPath, QColor
@@ -13,7 +13,7 @@ class SettingsPopup(QtWidgets.QDialog):
 
         # Main layout
         self.main_layout = QtWidgets.QVBoxLayout(self)
-
+        
         # Checkboxes layout
         self.checkboxes_layout = QtWidgets.QVBoxLayout()
         self.message_label = QtWidgets.QLabel("Settings are saved automatically.", self)
@@ -160,6 +160,7 @@ class SettingsPopup(QtWidgets.QDialog):
                 self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
                 self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
                 self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
+                self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
                 self.parent().textbox.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + config["Settings"]["light_mode_text"] + """;
@@ -175,6 +176,7 @@ class SettingsPopup(QtWidgets.QDialog):
                 self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
                 self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
                 self.parent().clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
+                self.parent().hide_button.setIcon(QIcon("images/hide-dark.svg"))
                 self.parent().textbox.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + config["Settings"]["dark_mode_text"] + """;
@@ -439,6 +441,7 @@ class MainWindow(QtWidgets.QWidget):
             self.setStyleSheet(f"background-color: {bg_color}; color: {text_color};")
 
         keyboard.add_hotkey(config["Settings"]["hotkey"], self.toggle_window)
+        keyboard.add_hotkey("escape", self.escape_pressed)
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.textbox_layout = QtWidgets.QHBoxLayout()
@@ -467,23 +470,33 @@ class MainWindow(QtWidgets.QWidget):
         self.settings_button = QtWidgets.QPushButton(self)
         self.settings_button.setFlat(True)
         self.settings_button.setStyleSheet(self.button_style)
+        self.settings_button.setToolTip("Preferences")
         self.exit_button = QtWidgets.QPushButton(self)
+        self.exit_button.setToolTip(f"Exit {config["Settings"]["program_title"]}")
         self.exit_button.setFlat(True)
         self.exit_button.setStyleSheet(self.button_style)
+        self.hide_button = QtWidgets.QPushButton(self)
+        self.hide_button.setStyleSheet(self.button_style)
+        self.hide_button.setToolTip(f"Hide {config["Settings"]["program_title"]}")
+
         self.clear_text_button = QtWidgets.QPushButton(self)
+        self.clear_text_button.setToolTip("Clear Text Field")
         self.clear_text_button.setFlat(True)
         self.clear_text_button.setStyleSheet(self.button_style)
         self.clear_text_button.clicked.connect(self.textbox.clear)
         self.clear_text_button.clicked.connect(self.textbox.setFocus)
+        self.hide_button.clicked.connect(self.toggle_window)
         self.exit_button.clicked.connect(sys.exit)
 
         if config["Settings"]["dark_mode"]:
             self.settings_button.setIcon(QIcon("images/settings-dark.svg"))
             self.exit_button.setIcon(QIcon("images/exit-dark.svg"))
+            self.hide_button.setIcon(QIcon("images/hide-dark.svg"))
             self.clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
         else:
             self.settings_button.setIcon(QIcon("images/settings-light.svg"))
             self.exit_button.setIcon(QIcon("images/exit-light.svg"))
+            self.hide_button.setIcon(QIcon("images/hide-light.svg"))
             self.clear_text_button.setIcon(QIcon("images/clear-light.svg"))
 
         self.scroll_area = QtWidgets.QScrollArea(self)
@@ -496,6 +509,7 @@ class MainWindow(QtWidgets.QWidget):
         self.textbox_layout.addWidget(self.textbox)
         self.textbox_layout.addWidget(self.clear_text_button)
         self.textbox_layout.addWidget(self.exit_button)
+        self.textbox_layout.addWidget(self.hide_button)
         self.textbox_layout.addWidget(self.settings_button)
         
         self.layout.addLayout(self.textbox_layout)
@@ -540,6 +554,10 @@ class MainWindow(QtWidgets.QWidget):
             widget.activateWindow()
             widget.raise_()
             self.textbox.setFocus()
+
+    def escape_pressed(self):
+        if self.isVisible():
+            self.hide()
 
     def open_settings(self):
         settings_popup = SettingsPopup(self)

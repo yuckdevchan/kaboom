@@ -1,6 +1,10 @@
 # kaboom
 explosively fast app launcher using Qt.
 
+## Usage
+```python3 -m pip install -r requirements-windows.txt```
+```python3 main.py```
+
 ## Supported Functionality
 - **Windows Start Menu Shortcuts** (bit broken but mostly works)
     - Just type the program you want and hitting enter will launch the first one.
@@ -18,3 +22,4 @@ explosively fast app launcher using Qt.
     - type `steam:` and your list of games should appear. Then type the game you want to launch.
 - **BSManager Instances**
     - type `bsman:` and your list of instances should appear. Then type the instance you want to launch.
+ 
