@@ -1,5 +1,5 @@
 # kaboom
-explosively fast run launcher using Qt.
+explosively fast app launcher using Qt.
 
 ## Supported Functionality
 - Windows Start Menu Shortcuts (bit broken but mostly works)
