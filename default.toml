@@ -3,17 +3,17 @@ dark_mode = true
 colour_overlay_mode = false
 dark_mode_bg = "#27282a"
 dark_mode_text = "#FFFFFF"
-light_mode_bg = "#FFFFFF"
+light_mode_bg = "#f2f2f2"
 light_mode_text = "#000000"
 colour_overlay_bg = "#b5f4bb"
 colour_overlay_text = "#000000"
-qt_style = "Fusion"
+qt_style = "Fusion.qss"
 hotkey = "shift + left shift"
 font_family = "Segoe UI"
 font_size = 10
 opacity = 1.0
 translucent_background = false
-borderless = true
+borderless = false
 rounded_corners = true
 always_on_top = true
 draggable_window = true
@@ -27,5 +27,24 @@ steam_path = "C:\\Program Files (x86)\\Steam"
 bsman_path = "C:\\Users\\<CURRENT_USER>\\BSManager\\BSInstances"
 search_start_menu = true
 search_calculator = true
+search_web = true
 search_steam = true
 search_bsman = true
+default_search_engine = "google"
+
+[Search_Engines]
+google = "https://www.google.com/search?q="
+duckduckgo = "https://duckduckgo.com/?q="
+brave = "https://search.brave.com/search?q="
+qwant = "https://www.qwant.com/?q="
+ecosia = "https://www.ecosia.org/search?q="
+startpage = "https://www.startpage.com/do/dsearch?query="
+wikipedia = "https://en.wikipedia.org/wiki/Special:Search?search="
+youtube = "https://www.youtube.com/results?search_query="
+github = "https://github.com/search?q="
+bing = "https://www.bing.com/search?q="
+yahoo = "https://search.yahoo.com/search?p="
+yandex = "https://yandex.com/search/?text="
+baidu = "https://www.baidu.com/s?wd="
+askcom = "https://www.ask.com/web?q="
+aol = "https://search.aol.com/aol/search?q="

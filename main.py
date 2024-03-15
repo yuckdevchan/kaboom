@@ -112,6 +112,7 @@ class SettingsPopup(QtWidgets.QDialog):
 
         self.draggable_window_switch.setChecked(config["Settings"]["draggable_window"])
         self.sidebar_mode_switch.setChecked(config["Settings"]["sidebar_mode"])
+        self.default_search_engine_combobox.setCurrentText(config["Settings"]["default_search_engine"].title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com"))
         self.verbatim_search_switch.setChecked(config["Settings"]["verbatim_search"])
         self.no_results_text_input.setText(config["Settings"]["no_results_text"])
         self.search_start_menu_switch.setChecked(config["Settings"]["search_start_menu"])
@@ -136,6 +137,7 @@ class SettingsPopup(QtWidgets.QDialog):
         self.draggable_window_switch.stateChanged.connect(self.change_draggable_window)
         self.sidebar_mode_switch.stateChanged.connect(self.change_sidebar_mode)
         self.verbatim_search_switch.stateChanged.connect(self.change_verbatim_search)
+        self.default_search_engine_combobox.currentTextChanged.connect(self.change_default_search_engine)
         self.no_results_text_input.textChanged.connect(self.change_no_results_text)
         self.search_start_menu_switch.stateChanged.connect(self.change_search_start_menu)
         self.search_calculator_switch.stateChanged.connect(self.change_search_calculator)
@@ -156,6 +158,8 @@ class SettingsPopup(QtWidgets.QDialog):
                 self.setStyleSheet(f"background-color: {config["Settings"]["light_mode_bg"]}; color: {config["Settings"]["light_mode_text"]};")
                 self.parent().setStyleSheet(f"background-color: {config["Settings"]["light_mode_bg"]}; color: {config["Settings"]["light_mode_text"]};")
                 self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
+                self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
+                self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
                 self.parent().textbox.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + config["Settings"]["light_mode_text"] + """;
@@ -169,6 +173,8 @@ class SettingsPopup(QtWidgets.QDialog):
                 self.setStyleSheet(f"background-color: {config["Settings"]["dark_mode_bg"]}; color: {config["Settings"]["dark_mode_text"]};")
                 self.parent().setStyleSheet(f"background-color: {config["Settings"]["dark_mode_bg"]}; color: {config["Settings"]["dark_mode_text"]};")
                 self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
+                self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
+                self.parent().clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
                 self.parent().textbox.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + config["Settings"]["dark_mode_text"] + """;
@@ -321,6 +327,14 @@ class SettingsPopup(QtWidgets.QDialog):
                 config['Settings']['verbatim_search'] = False
             elif state == 2:
                 config['Settings']['verbatim_search'] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
+    def change_default_search_engine(self, text):
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            config['Settings']['default_search_engine'] = text.lower().replace("Ask.com", "askcom")
             file.seek(0)
             toml.dump(config, file)
             file.truncate()

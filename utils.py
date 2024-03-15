@@ -99,8 +99,7 @@ def narrow_down(search_text):
             narrowed_list = ["Calculator Error: " + str(e).title()]
     elif search_text.startswith("web:"):
         narrowed_list = ["Press Enter to Search the Web."]
-    elif search_text.startswith("rizzler:"):
-        print("sus")
+    elif search_text.startswith("rizzler"):
         narrowed_list = ["""
 gyatt
 i was in ohio before i met you
@@ -112,7 +111,7 @@ but i hope i never edge again
 i know it breaks your fanum
 taxing in ohio and i'm still not sigma
 four years no livy
-now you're looking pretty on adin ross twitch agains
+now you're looking pretty on adin ross twitch again
 i i-i-i-i can't rizz
 no i i-i-i-i can't mew
 so baby gronk me closer
