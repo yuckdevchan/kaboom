@@ -3,7 +3,6 @@ from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon, QPainterPath, QColor
 from PySide6 import QtCore, QtWidgets, QtGui
-from fontawesome import icons
 
 from utils import list_programs, narrow_down, determine_program, load_themes
 
@@ -48,7 +47,7 @@ class SettingsPopup(QtWidgets.QDialog):
         themes = load_themes()
         themes_without_file_extension = [theme.replace(".qss", "") for theme in themes]
         self.qt_style_combobox.addItems(QStyleFactory.keys() + themes_without_file_extension)
-        self.qt_style_combobox.setCurrentText(config["Settings"]["qt_style"])
+        self.qt_style_combobox.setCurrentText(config["Settings"]["qt_style"].replace(".qss", ""))
         self.borderless_switch.setChecked(config["Settings"]["borderless"])
         self.rounded_corners_switch.setChecked(config["Settings"]["rounded_corners"])
         self.always_on_top_switch.setChecked(config["Settings"]["always_on_top"])
@@ -76,12 +75,19 @@ class SettingsPopup(QtWidgets.QDialog):
         self.sidebar_mode_switch = QtWidgets.QCheckBox("Sidebar Mode", self)
         self.search_behaviour_label = QtWidgets.QLabel("Search Behaviour", self)
         self.search_behaviour_label.setStyleSheet("font-weight: bold;")
+        self.default_search_label = QtWidgets.QLabel("Default Search Engine:", self)
+        self.default_search_engine_combobox = QtWidgets.QComboBox(self)
+        search_engines = []
+        for search_engine in config["Search_Engines"].keys(): search_engines.append(search_engine.title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com"))
+        self.default_search_engine_combobox.addItems(search_engines)
         self.verbatim_search_switch = QtWidgets.QCheckBox("Verbatim Search", self)
         self.no_results_text_label = QtWidgets.QLabel("No Results Text:", self)
         self.no_results_text_input = QtWidgets.QLineEdit(self)
         self.search_providers_label = QtWidgets.QLabel("Search Providers", self)
+        self.search_providers_label.setStyleSheet("font-weight: bold;")
         self.search_start_menu_switch = QtWidgets.QCheckBox("Start Menu", self)
         self.search_calculator_switch = QtWidgets.QCheckBox("Calculator", self)
+        self.search_web_switch = QtWidgets.QCheckBox("Web", self)
         self.search_steam_switch = QtWidgets.QCheckBox("Steam", self)
         self.search_bsman_switch = QtWidgets.QCheckBox("BSManager", self)
         self.reset_settings_button = QtWidgets.QPushButton("Reset All Settings", self)
@@ -90,12 +96,15 @@ class SettingsPopup(QtWidgets.QDialog):
         self.other_layout.addWidget(self.draggable_window_switch)
         self.other_layout.addWidget(self.sidebar_mode_switch)
         self.other_layout.addWidget(self.search_behaviour_label)
+        self.other_layout.addWidget(self.default_search_label)
+        self.other_layout.addWidget(self.default_search_engine_combobox)
         self.other_layout.addWidget(self.verbatim_search_switch)
         self.other_layout.addWidget(self.no_results_text_label)
         self.other_layout.addWidget(self.no_results_text_input)
         self.other_layout.addWidget(self.search_providers_label)
         self.other_layout.addWidget(self.search_start_menu_switch)
         self.other_layout.addWidget(self.search_calculator_switch)
+        self.other_layout.addWidget(self.search_web_switch)
         self.other_layout.addWidget(self.search_steam_switch)
         self.other_layout.addWidget(self.search_bsman_switch)
         self.other_layout.addWidget(self.reset_settings_button)
@@ -107,6 +116,7 @@ class SettingsPopup(QtWidgets.QDialog):
         self.no_results_text_input.setText(config["Settings"]["no_results_text"])
         self.search_start_menu_switch.setChecked(config["Settings"]["search_start_menu"])
         self.search_calculator_switch.setChecked(config["Settings"]["search_calculator"])
+        self.search_web_switch.setChecked(config["Settings"]["search_web"])
         self.search_steam_switch.setChecked(config["Settings"]["search_steam"])
         self.search_bsman_switch.setChecked(config["Settings"]["search_bsman"])
 
@@ -129,10 +139,14 @@ class SettingsPopup(QtWidgets.QDialog):
         self.no_results_text_input.textChanged.connect(self.change_no_results_text)
         self.search_start_menu_switch.stateChanged.connect(self.change_search_start_menu)
         self.search_calculator_switch.stateChanged.connect(self.change_search_calculator)
+        self.search_web_switch.stateChanged.connect(self.change_search_web)
         self.search_steam_switch.stateChanged.connect(self.change_search_steam)
         self.search_bsman_switch.stateChanged.connect(self.change_search_bsman)
         self.reset_settings_button.clicked.connect(self.reset_settings_confirmation)
         self.edit_toml_button.clicked.connect(self.edit_toml)
+
+    def closeEvent(self, event):
+        self.parent().textbox.setFocus()
 
     def change_theme(self, state):
         with open('config.toml', 'r+') as file:
@@ -142,11 +156,27 @@ class SettingsPopup(QtWidgets.QDialog):
                 self.setStyleSheet(f"background-color: {config["Settings"]["light_mode_bg"]}; color: {config["Settings"]["light_mode_text"]};")
                 self.parent().setStyleSheet(f"background-color: {config["Settings"]["light_mode_bg"]}; color: {config["Settings"]["light_mode_text"]};")
                 self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
+                self.parent().textbox.setStyleSheet("""
+    QLineEdit {
+        border: 2px solid """ + config["Settings"]["light_mode_text"] + """;
+        border-radius: 10px;
+        padding: 0 8px;
+        selection-background-color: darkgray;
+    }
+""")
             elif state == 2:
                 config['Settings']['dark_mode'] = True
                 self.setStyleSheet(f"background-color: {config["Settings"]["dark_mode_bg"]}; color: {config["Settings"]["dark_mode_text"]};")
                 self.parent().setStyleSheet(f"background-color: {config["Settings"]["dark_mode_bg"]}; color: {config["Settings"]["dark_mode_text"]};")
                 self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
+                self.parent().textbox.setStyleSheet("""
+    QLineEdit {
+        border: 2px solid """ + config["Settings"]["dark_mode_text"] + """;
+        border-radius: 10px;
+        padding: 0 8px;
+        selection-background-color: darkgray;
+    }
+""")
             file.seek(0)
             toml.dump(config, file)
             file.truncate()
@@ -325,6 +355,17 @@ class SettingsPopup(QtWidgets.QDialog):
             toml.dump(config, file)
             file.truncate()
 
+    def change_search_web(self, state):
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                config['Settings']['search_web'] = False
+            elif state == 2:
+                config['Settings']['search_web'] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
     def change_search_steam(self, state):
         with open('config.toml', 'r+') as file:
             config = toml.load(file)
@@ -391,15 +432,13 @@ class MainWindow(QtWidgets.QWidget):
         self.textbox.setPlaceholderText("Start typing to search...")
         self.textbox.setStyleSheet("""
     QLineEdit {
-        border: 2px solid white;
+        border: 2px solid """ + text_color + """;
         border-radius: 10px;
         padding: 0 8px;
         selection-background-color: darkgray;
     }
 """)
-        self.settings_button = QtWidgets.QPushButton(self)
-        self.settings_button.setFlat(True)
-        self.settings_button.setStyleSheet("""
+        self.button_style = """
     QPushButton {
         border: none;
     }
@@ -410,8 +449,28 @@ class MainWindow(QtWidgets.QWidget):
         background-color: #00000000;
         border: none;
     }
-""")
-        self.settings_button.setIcon(QIcon("images/settings-dark.svg"))
+"""
+        self.settings_button = QtWidgets.QPushButton(self)
+        self.settings_button.setFlat(True)
+        self.settings_button.setStyleSheet(self.button_style)
+        self.exit_button = QtWidgets.QPushButton(self)
+        self.exit_button.setFlat(True)
+        self.exit_button.setStyleSheet(self.button_style)
+        self.clear_text_button = QtWidgets.QPushButton(self)
+        self.clear_text_button.setFlat(True)
+        self.clear_text_button.setStyleSheet(self.button_style)
+        self.clear_text_button.clicked.connect(self.textbox.clear)
+        self.clear_text_button.clicked.connect(self.textbox.setFocus)
+        self.exit_button.clicked.connect(sys.exit)
+
+        if config["Settings"]["dark_mode"]:
+            self.settings_button.setIcon(QIcon("images/settings-dark.svg"))
+            self.exit_button.setIcon(QIcon("images/exit-dark.svg"))
+            self.clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
+        else:
+            self.settings_button.setIcon(QIcon("images/settings-light.svg"))
+            self.exit_button.setIcon(QIcon("images/exit-light.svg"))
+            self.clear_text_button.setIcon(QIcon("images/clear-light.svg"))
 
         self.scroll_area = QtWidgets.QScrollArea(self)
         self.scroll_area.setFrameShape(QtWidgets.QScrollArea.NoFrame)
@@ -421,6 +480,8 @@ class MainWindow(QtWidgets.QWidget):
         self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         
         self.textbox_layout.addWidget(self.textbox)
+        self.textbox_layout.addWidget(self.clear_text_button)
+        self.textbox_layout.addWidget(self.exit_button)
         self.textbox_layout.addWidget(self.settings_button)
         
         self.layout.addLayout(self.textbox_layout)
@@ -455,6 +516,7 @@ class MainWindow(QtWidgets.QWidget):
 
             def mouseReleaseEvent(self, event):
                 self.m_drag = False
+                self.textbox.setFocus()
         
     def toggle_window(self):
         if self.isVisible():
@@ -463,6 +525,7 @@ class MainWindow(QtWidgets.QWidget):
             self.show()
             widget.activateWindow()
             widget.raise_()
+            self.textbox.setFocus()
 
     def open_settings(self):
         settings_popup = SettingsPopup(self)

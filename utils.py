@@ -31,32 +31,40 @@ def list_programs() -> list:
 def list_steam_games(search_text):
     steam_path = config["Settings"]["steam_path"]
     steam_apps_path = f"{steam_path}\\steamapps\\common"
-    steam_games = os.listdir(steam_apps_path)
-    narrowed_list = []
-    for game in steam_games:
-        if remove_specials(search_text) in remove_specials(game):
-            narrowed_list.append(game)
+    if os.path.exists(steam_apps_path):
+        steam_games = os.listdir(steam_apps_path)
+        narrowed_list = []
+        for game in steam_games:
+            if remove_specials(search_text) in remove_specials(game):
+                narrowed_list.append(game)
+    else:
+        narrowed_list = ["No Steam Games Found."]
     return narrowed_list
 
 def list_bs_instances(search_text):
     bsman_path = config["Settings"]["bsman_path"].replace("<CURRENT_USER>", current_user())
-    bsman_instances = os.listdir(bsman_path)
     narrowed_list = []
-    for instance in bsman_instances:
-        if remove_specials(search_text) in remove_specials(instance):
-            narrowed_list.append(instance)
+    if os.path.exists(bsman_path):
+        if len(os.listdir()) > 0:
+            bsman_instances = os.listdir(bsman_path)
+            for instance in bsman_instances:
+                if remove_specials(search_text) in remove_specials(instance):
+                    narrowed_list.append(instance)
+    else:
+        narrowed_list = ["No Beat Saber Versions Found."]
     return narrowed_list
 
 def get_steam_appid(game_name):
-    steam_directory = config["Settings"]["steam_path"] + "\\steamapps"
-    for file in os.listdir(steam_directory):
-        if file.endswith('.acf'):
-            with open(os.path.join(steam_directory, file), 'r', encoding="utf-8") as f:
-                content = f.read()
-                if game_name.lower() in content.lower():
-                    appid = re.search(r'"appid"\s+"(\d+)"', content)
-                    if appid:
-                        return appid.group(1)
+    if not game_name == "No Steam Games Found.":
+        steam_directory = config["Settings"]["steam_path"] + "\\steamapps"
+        for file in os.listdir(steam_directory):
+            if file.endswith('.acf'):
+                with open(os.path.join(steam_directory, file), 'r', encoding="utf-8") as f:
+                    content = f.read()
+                    if game_name.lower() in content.lower():
+                        appid = re.search(r'"appid"\s+"(\d+)"', content)
+                        if appid:
+                            return appid.group(1)
     return None
 
 def is_calculation(s):
@@ -65,6 +73,10 @@ def is_calculation(s):
         return True
     except Exception as e:
         return False
+    
+def search_web(search_text):
+    webbrowser.open(f"{config["Search_Engines"][config["Settings"]["default_search_engine"]]}{search_text}")
+    return ["Searched the web."]
 
 def remove_specials(string):
     unwanted_chars = [" ", ".", "-", "_", "(", ")", "&", "'", ",", "!", "?", ":", ";", "=", "+", "[", "]", "{", "}", "|", "\\", "/", "<", ">", "~", "`", "@", "#", "$", "%", "^", "*"]
@@ -85,6 +97,34 @@ def narrow_down(search_text):
             narrowed_list = [str(result)]
         except Exception as e:
             narrowed_list = ["Calculator Error: " + str(e).title()]
+    elif search_text.startswith("web:"):
+        narrowed_list = ["Press Enter to Search the Web."]
+    elif search_text.startswith("rizzler:"):
+        print("sus")
+        narrowed_list = ["""
+gyatt
+i was in ohio before i met you
+i rizz too much and that's an issue
+but I grimace shake
+gyatt
+tell your friends it was nice to rizz them
+but i hope i never edge again
+i know it breaks your fanum
+taxing in ohio and i'm still not sigma
+four years no livy
+now you're looking pretty on adin ross twitch agains
+i i-i-i-i can't rizz
+no i i-i-i-i can't mew
+so baby gronk me closer
+in the back-skibidi toilet
+that i know you can't afford
+kai cenat tatted on my shoulder
+pull the gyatt right off the corner
+from that fanum that you taxed
+from your roomate back in ohio
+we ain't never not the rizzler
+...
+we ain't never not the rizzler"""]
     else:
         for program in program_list:
             if not config["Settings"]["verbatim_search"]:
@@ -110,9 +150,12 @@ def determine_program(string):
     if len(narrowed_list) > 0:
         if string.startswith("steam:"):
             appid = get_steam_appid(narrowed_list[0])
-            webbrowser.open(f"steam://rungameid/{appid}")
+            if appid is not None:
+                webbrowser.open(f"steam://rungameid/{appid}")
         elif string.startswith("bsman:"):
             launch_program_cwd(f"{config['Settings']['bsman_path'].replace('<CURRENT_USER>', current_user())}\\{narrowed_list[0]}\\Beat Saber.exe", f"{config['Settings']['bsman_path'].replace('<CURRENT_USER>', current_user())}\\{narrowed_list[0]}")
+        elif string.startswith("web:"):
+            search_web(string.split("web:")[1])
         else:
             file_name = narrowed_list[0]
             shortcut_path = Path('C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs') / narrowed_list[0]
