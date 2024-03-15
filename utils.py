@@ -1,5 +1,6 @@
-import os, pathlib, subprocess, config, toml, re, webbrowser, math
-import win32com.client as win32
+import os, pathlib, subprocess, config, toml, re, webbrowser, math, platform
+if platform.system() == "Windows":
+    import win32com.client as win32
 from pathlib import Path
 
 with open("config.toml", "r") as f:
@@ -8,6 +9,16 @@ with open("config.toml", "r") as f:
 def current_user() -> str:
     return os.getlogin()
 
+windows_directories = [
+    'C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs',
+    f'C:\\Users\\{current_user()}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs'
+]
+
+linux_directories = [
+    '/usr/share/applications', 
+    f'/home/{current_user()}/.local/share/applications'
+]
+
 def launch_program(program):
     subprocess.Popen(program)
 
@@ -15,18 +26,23 @@ def launch_program_cwd(program, cwd):
     subprocess.Popen(program, cwd=cwd)
 
 def list_programs() -> list:
-    directories = [
-        'C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs',
-        f'C:\\Users\\{current_user()}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs'
-    ]
-    lnk_files = []
-    for directory in directories:
-        for root, dirs, files in os.walk(directory):
-            for file in files:
-                if file.endswith(".lnk"):
-                    relative_path = Path(root).relative_to(directory)
-                    lnk_files.append(str(Path(relative_path) / file))
-    return lnk_files
+    if platform.system() == "Windows":
+        lnk_files = []
+        for directory in windows_directories:
+            for root, dirs, files in os.walk(directory):
+                for file in files:
+                    if file.endswith(".lnk"):
+                        relative_path = Path(root).relative_to(directory)
+                        lnk_files.append(str(Path(relative_path) / file))
+        program_list = lnk_files
+    elif platform.system() == "Linux":
+        desktop_files = []
+        for directory in linux_directories:
+            for file_ in os.listdir(directory):
+                if file_.endswith(".desktop"):
+                    desktop_files.append(str(file_))
+        program_list = desktop_files
+    return program_list
 
 def list_steam_games(search_text):
     steam_path = config["Settings"]["steam_path"]

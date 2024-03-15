@@ -10,6 +10,7 @@ colour_overlay_text = "#000000"
 qt_style = "Fusion.qss"
 hotkey = "shift + left shift"
 font_family = "Segoe UI"
+font_path = false
 font_size = 10
 opacity = 1.0
 translucent_background = false

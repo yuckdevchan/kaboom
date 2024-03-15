@@ -3,6 +3,7 @@
         "borderless",
         "colour",
         "colours",
+        "geteuid",
         "rizzler"
     ]
 }

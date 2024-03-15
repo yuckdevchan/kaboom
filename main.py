@@ -1,11 +1,10 @@
-import sys, keyboard, toml, os
+import sys, toml, os, platform, keyboard
 from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon, QPainterPath, QColor
 from PySide6 import QtCore, QtWidgets, QtGui
 
 from utils import list_programs, narrow_down, determine_program, load_themes
-
 class SettingsPopup(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -522,7 +521,7 @@ class MainWindow(QtWidgets.QWidget):
         program_list = list_programs()
         text = ""
         for i in range(len(program_list)):
-            text += program_list[i].replace(".lnk", "").rsplit("\\")[-1] + "\n"
+            text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
         self.change_text(text)
 
         self.m_drag = False
@@ -595,7 +594,7 @@ class MainWindow(QtWidgets.QWidget):
             narrowed_list = narrow_down(text)
             new_text = ""
             for i in range(len(narrowed_list)):
-                new_text += narrowed_list[i].replace(".lnk", "").rsplit("\\")[-1] + "\n"
+                new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
             self.change_text(new_text)
 
     @QtCore.Slot()
@@ -618,6 +617,27 @@ class MainWindow(QtWidgets.QWidget):
             self.toggle_window()
 
 if __name__ == "__main__":
+
+    # if platform.system() == "Linux":
+    #     if os.geteuid() != 0:
+    #         print("Script not started as root. Running sudo..")
+    #         cwd = os.getcwd()
+    #         with tempfile.NamedTemporaryFile(delete=False) as tf:
+    #             tf.write(cwd.encode())
+    #         args = ['pkexec', sys.executable, os.path.abspath(sys.argv[0]), tf.name] + sys.argv[1:]
+    #         os.execvpe('pkexec', args, os.environ)
+    #     else:
+    #         with open(sys.argv[1], 'r') as tf:
+    #             cwd = tf.read().strip()
+    #         print("cwd: " + cwd)
+    #         os.chdir(cwd)
+    #         os.unlink(sys.argv[1])
+    #         from utils import list_programs, narrow_down, determine_program, load_themes
+    # if platform.system() == "Darwin":
+    #     if os.geteuid() != 0:
+    #         print("Script not started as root. Running sudo..")
+    #         args = [sys.executable] + sys.argv
+    #         os.execlp('osascript', 'osascript', '-e', 'do shell script "{}" with administrator privileges'.format(' '.join(args)))
 
     app = QtWidgets.QApplication([])
     app.setStyle("Macintosh" if sys.platform == "darwin" else "Fusion")
