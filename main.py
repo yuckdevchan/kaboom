@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon, QPainterPath, QColor
 from PySide6 import QtCore, QtWidgets, QtGui
+from pathlib import Path
 
 from utils import list_programs, narrow_down, determine_program, load_themes
 class SettingsPopup(QtWidgets.QDialog):
@@ -225,8 +226,7 @@ class SettingsPopup(QtWidgets.QDialog):
             toml.dump(config, file)
             file.truncate()
             if text in load_themes():
-                print(load_themes())
-                with open(f"themes\\{text}", "r") as f:
+                with open(Path(f"themes/{text}"), "r") as f:
                     text = f.read()
                     app.setStyleSheet(text)
             else:
@@ -413,7 +413,7 @@ class SettingsPopup(QtWidgets.QDialog):
         reset_popup.setStyleSheet(f"background-color: {config["Settings"]["light_mode_bg"]}; color: {config["Settings"]["light_mode_text"]};")
         reset_popup.setIcon(QtWidgets.QMessageBox.Warning)
         reset_popup.buttonClicked.connect(self.reset_settings)
-        reset_popup.exec_()
+        reset_popup.exec()
 
     def reset_settings(self, button):
         if button.text() == "&Yes":
@@ -560,7 +560,7 @@ class MainWindow(QtWidgets.QWidget):
 
     def open_settings(self):
         settings_popup = SettingsPopup(self)
-        settings_popup.exec_()
+        settings_popup.exec()
 
     def hide_window(self):
         widget.hide()

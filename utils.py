@@ -1,6 +1,8 @@
 import os, pathlib, subprocess, config, toml, re, webbrowser, math, platform
 if platform.system() == "Windows":
     import win32com.client as win32
+elif platform.system() == "Linux":
+    import configparser
 from pathlib import Path
 
 with open("config.toml", "r") as f:
@@ -155,9 +157,22 @@ we ain't never not the rizzler"""]
     return narrowed_list
 
 def run_shortcut(shortcut: str):
-    shell = win32.Dispatch("WScript.Shell")
-    shortcut = shell.CreateShortCut(shortcut)
-    subprocess.Popen([shortcut.Targetpath] + shortcut.Arguments.split(), cwd=shortcut.WorkingDirectory)
+    if platform.system() == "Windows":
+        shell = win32.Dispatch("WScript.Shell")
+        shortcut = shell.CreateShortCut(shortcut)
+        subprocess.Popen([shortcut.Targetpath] + shortcut.Arguments.split(), cwd=shortcut.WorkingDirectory)
+    elif platform.system() == "Linux":
+        config = configparser.ConfigParser(interpolation=None)
+        config.read(shortcut)
+
+        try:
+            command = config['Desktop Entry']['Exec']
+            startin = config['Desktop Entry'].get('Path', '')
+            if startin:
+                os.chdir(startin)
+            subprocess.run(f'sudo -u {current_user()} {command}', shell=True)
+        except KeyError:
+            print(f"No 'Exec' key found in {shortcut}")
 
 
 def determine_program(string):
@@ -173,9 +188,14 @@ def determine_program(string):
             search_web(string.split("web:")[1])
         else:
             file_name = narrowed_list[0]
-            shortcut_path = Path('C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs') / narrowed_list[0]
-            if not shortcut_path.exists():
-                shortcut_path = Path(f'C:\\Users\\{current_user()}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs') / narrowed_list[0]
+            if platform.system() == "Windows":
+                shortcut_path = Path('C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs') / narrowed_list[0]
+                if not shortcut_path.exists():
+                    shortcut_path = Path(f'C:\\Users\\{current_user()}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs') / narrowed_list[0]
+            elif platform.system() == "Linux":
+                shortcut_path = Path('/usr/share/applications') / narrowed_list[0]
+                if not shortcut_path.exists():
+                    shortcut_path = Path(f'/home/{current_user()}/.local/share/applications')
             run_shortcut(str(shortcut_path))
 
 def load_themes():
