@@ -47,8 +47,9 @@ def list_programs() -> list:
     return program_list
 
 def list_steam_games(search_text):
-    steam_path = config["Settings"]["steam_path"]
-    steam_apps_path = f"{steam_path}\\steamapps\\common"
+    steam_path = config["Settings"]["steam_path"].replace("<CURRENT_USER>", current_user())
+    steam_apps_path = Path(steam_path, "steamapps", "common")
+    print(str(steam_apps_path))
     if os.path.exists(steam_apps_path):
         steam_games = os.listdir(steam_apps_path)
         narrowed_list = []
@@ -69,12 +70,15 @@ def list_bs_instances(search_text):
                 if remove_specials(search_text) in remove_specials(instance):
                     narrowed_list.append(instance)
     else:
-        narrowed_list = ["No Beat Saber Versions Found."]
+        if platform.system() == "Windows":
+            narrowed_list = ["No Beat Saber Versions Found."]
+        else:
+            narrowed_list = [f"Launching Beat Saber Instances is not supported on {platform.system()}."]
     return narrowed_list
 
 def get_steam_appid(game_name):
     if not game_name == "No Steam Games Found.":
-        steam_directory = config["Settings"]["steam_path"] + "\\steamapps"
+        steam_directory = Path(config["Settings"]["steam_path"].replace("<CURRENT_USER>", current_user()), "steamapps")
         for file in os.listdir(steam_directory):
             if file.endswith('.acf'):
                 with open(os.path.join(steam_directory, file), 'r', encoding="utf-8") as f:
@@ -195,7 +199,7 @@ def determine_program(string):
             elif platform.system() == "Linux":
                 shortcut_path = Path('/usr/share/applications') / narrowed_list[0]
                 if not shortcut_path.exists():
-                    shortcut_path = Path(f'/home/{current_user()}/.local/share/applications')
+                    shortcut_path = Path(f'/home/{current_user()}/.local/share/applications') / narrowed_list[0]
             run_shortcut(str(shortcut_path))
 
 def load_themes():

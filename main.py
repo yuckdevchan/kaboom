@@ -1,9 +1,14 @@
-import sys, toml, os, platform, keyboard
-from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory
-from PySide6.QtCore import Qt, Slot
+import sys, toml, os, platform
+from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory, QApplication
+from PySide6.QtCore import Qt, Slot, QTimer
 from PySide6.QtGui import QIcon, QPainterPath, QColor
 from PySide6 import QtCore, QtWidgets, QtGui
 from pathlib import Path
+
+if platform.system() == "Linux":
+    import subprocess
+elif platform.system() == "Windows":
+    import keyboard
 
 from utils import list_programs, narrow_down, determine_program, load_themes
 class SettingsPopup(QtWidgets.QDialog):
@@ -23,7 +28,7 @@ class SettingsPopup(QtWidgets.QDialog):
         self.qt_style_label = QtWidgets.QLabel("Qt Style", self)
         self.qt_style_combobox = QtWidgets.QComboBox(self)
         self.compositing_label = QtWidgets.QLabel("Compositing", self)
-        self.borderless_switch = QtWidgets.QCheckBox("Borderless (Requires Restart)", self)
+        self.borderless_switch = QtWidgets.QCheckBox("Borderless Window", self)
         self.rounded_corners_switch = QtWidgets.QCheckBox("Rounded Corners (Requires Restart and Borderless mode)", self)
         self.always_on_top_switch = QtWidgets.QCheckBox("Always on Top (Requires Restart)", self)
         self.translucent_background_switch = QtWidgets.QCheckBox("Translucent Background (Requires Restart)", self)
@@ -238,8 +243,12 @@ class SettingsPopup(QtWidgets.QDialog):
             if state == 0:
                 config['Settings']['borderless'] = False
                 self.rounded_corners_switch.setChecked(False)
+                self.parent().setWindowFlags(widget.windowFlags() & ~Qt.FramelessWindowHint)
+                self.parent().toggle_window()
             elif state == 2:
                 config['Settings']['borderless'] = True
+                self.parent().setWindowFlag(Qt.FramelessWindowHint)
+                self.parent().toggle_window()
             file.seek(0)
             toml.dump(config, file)
             file.truncate()
@@ -439,8 +448,9 @@ class MainWindow(QtWidgets.QWidget):
                 text_color = config["Settings"]["light_mode_text"]
             self.setStyleSheet(f"background-color: {bg_color}; color: {text_color};")
 
-        keyboard.add_hotkey(config["Settings"]["hotkey"], self.toggle_window)
-        keyboard.add_hotkey("escape", self.escape_pressed)
+        if platform.system() == "Windows":
+            keyboard.add_hotkey(config["Settings"]["hotkey"], self.toggle_window)
+            keyboard.add_hotkey("escape", self.escape_pressed)
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.textbox_layout = QtWidgets.QHBoxLayout()
@@ -521,29 +531,31 @@ class MainWindow(QtWidgets.QWidget):
         program_list = list_programs()
         text = ""
         for i in range(len(program_list)):
-            text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
+            text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1].title() + "\n"
         self.change_text(text)
 
         self.m_drag = False
         self.m_DragPosition = QtCore.QPoint()
-    
-    with open('config.toml', 'r') as file:
-        config = toml.load(file)
-        if config["Settings"]["draggable_window"]:
-            def mousePressEvent(self, event):
-                if event.button() == QtCore.Qt.LeftButton:
-                    self.m_drag = True
-                    self.m_DragPosition = event.globalPos() - self.pos()
-                    event.accept()
 
-            def mouseMoveEvent(self, event):
-                if event.buttons() == QtCore.Qt.LeftButton and self.m_drag:
-                    self.move(event.globalPos() - self.m_DragPosition)
-                    event.accept()
+        with open('config.toml', 'r') as file:
+            config = toml.load(file)
+            self.draggable_window = config["Settings"]["draggable_window"]
 
-            def mouseReleaseEvent(self, event):
-                self.m_drag = False
-                self.textbox.setFocus()
+    def mousePressEvent(self, event):
+        if self.draggable_window and event.button() == QtCore.Qt.LeftButton:
+            self.m_drag = True
+            self.m_DragPosition = event.globalPosition().toPoint()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self.draggable_window and event.buttons() == QtCore.Qt.LeftButton and self.m_drag:
+            self.move(self.pos() + event.globalPosition().toPoint() - self.m_DragPosition)
+            self.m_DragPosition = event.globalPosition().toPoint()
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            self.m_drag = False
         
     def toggle_window(self):
         if self.isVisible():
@@ -594,7 +606,7 @@ class MainWindow(QtWidgets.QWidget):
             narrowed_list = narrow_down(text)
             new_text = ""
             for i in range(len(narrowed_list)):
-                new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
+                new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1].title() + "\n"
             self.change_text(new_text)
 
     @QtCore.Slot()
@@ -615,6 +627,38 @@ class MainWindow(QtWidgets.QWidget):
             determine_program(self.textbox.text())
             self.textbox.clear()
             self.toggle_window()
+
+if platform.system() == "Linux":
+    def read_value_from_file(filename):
+        with open(filename, 'r') as file:
+            data = file.read().strip()  # Remove any leading/trailing whitespace
+        return data
+
+    def execute_code(filename):
+        with open(filename, 'r+') as file:
+            data = file.read()
+            data = data.replace('1', '0')
+            file.seek(0)
+            file.write(data)
+            file.truncate()
+        if widget.isVisible():
+            widget.hide()
+        else:
+            widget.show()
+            widget.activateWindow()
+            widget.raise_()
+            widget.textbox.setFocus()
+
+    def check_file():
+        filename = "toggle_window_socket"
+        if not os.path.exists(filename):
+            with open(filename, "w") as file:
+                data = "0"
+                file.write(data)
+                subprocess.run(f"chmod 777 {filename}", shell=True)
+        value = read_value_from_file(filename)
+        if value == '1':
+            execute_code(filename)
 
 if __name__ == "__main__":
 
@@ -639,11 +683,17 @@ if __name__ == "__main__":
     #         args = [sys.executable] + sys.argv
     #         os.execlp('osascript', 'osascript', '-e', 'do shell script "{}" with administrator privileges'.format(' '.join(args)))
 
-    app = QtWidgets.QApplication([])
-    app.setStyle("Macintosh" if sys.platform == "darwin" else "Fusion")
+    app = QApplication([])
+    app.setStyle("Macintosh" if platform.system() == "Darwin" else "Fusion")
     app.setWindowIcon(QIcon("logo.png"))
+    
+    if platform.system() == "Linux":
+        timer = QTimer()
+        timer.timeout.connect(check_file)
+        timer.start(0.1)
 
     widget = MainWindow()
+    widget.setWindowFlag(QtCore.Qt.Window)
     with open('config.toml', 'r') as file:
         config = toml.load(file)
         font = QtGui.QFont(config["Settings"]["font_family"], config["Settings"]["font_size"])

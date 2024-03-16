@@ -3,7 +3,9 @@
         "borderless",
         "colour",
         "colours",
+        "Frameless",
         "geteuid",
-        "rizzler"
+        "rizzler",
+        "steamapps"
     ]
 }
