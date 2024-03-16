@@ -168,13 +168,17 @@ def run_shortcut(shortcut: str):
     elif platform.system() == "Linux":
         config = configparser.ConfigParser(interpolation=None)
         config.read(shortcut)
+        print(config.read(shortcut))
 
         try:
             command = config['Desktop Entry']['Exec']
-            startin = config['Desktop Entry'].get('Path', '')
-            if startin:
-                os.chdir(startin)
-            subprocess.run(f'sudo -u {current_user()} {command}', shell=True)
+            if shortcut.endswith(".desktop"):
+                startin = config['Desktop Entry'].get('Path', '')
+                if startin:
+                    os.chdir(startin)
+                subprocess.run(f'sudo -u {current_user()} {command}', shell=True)
+            elif "://" in shortcut:
+                webbrowser.open(command)
         except KeyError:
             print(f"No 'Exec' key found in {shortcut}")
 
