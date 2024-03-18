@@ -91,8 +91,9 @@ def get_steam_appid(game_name):
 
 def is_calculation(s):
     try:
-        eval(s, {"__builtins__": None, **math.__dict__})
-        return True
+        # eval(s, {"__builtins__": None, **math.__dict__})
+        if ("*" in s or "/" in s or "-" in s or "+" in s or "sqrt" in s) or (s == "e") or (s == "pi"):
+            return True
     except Exception as e:
         return False
     
@@ -118,7 +119,7 @@ def narrow_down(search_text):
             result = eval(search_text, {"__builtins__": None, **math.__dict__})
             narrowed_list = [str(result)]
         except Exception as e:
-            narrowed_list = ["Calculator Error: " + str(e).title()]
+            narrowed_list = ["Error: " + str(e).title()]
     elif search_text.startswith("web:"):
         narrowed_list = ["Press Enter to Search the Web."]
     elif search_text.startswith("rizzler"):
@@ -212,6 +213,7 @@ def load_themes():
         if file.endswith(".qss"):
                 themes.append(file)
     return themes
+
 
 def cli():
     program_list = list_programs()

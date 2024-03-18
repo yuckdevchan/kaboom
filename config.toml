@@ -1,5 +1,5 @@
 [Settings]
-dark_mode = true
+dark_mode = false
 colour_overlay_mode = false
 dark_mode_bg = "#27282a"
 dark_mode_text = "#FFFFFF"
@@ -11,11 +11,11 @@ qt_style = "Fusion.qss"
 hotkey = "shift + left shift"
 font_family = "path"
 font_path = "fonts/selawk.ttf"
-font_size = 10
+font_size = 13
 opacity = 1.0
 translucent_background = false
 borderless = true
-rounded_corners = false
+rounded_corners = true
 always_on_top = true
 draggable_window = true
 width = 600

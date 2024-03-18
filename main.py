@@ -10,7 +10,8 @@ if platform.system() == "Linux":
 elif platform.system() == "Windows":
     import keyboard
 
-from utils import list_programs, narrow_down, determine_program, load_themes
+from utils import list_programs, narrow_down, determine_program, load_themes, is_calculation
+
 class SettingsPopup(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -30,7 +31,7 @@ class SettingsPopup(QtWidgets.QDialog):
         self.compositing_label = QtWidgets.QLabel("Compositing", self)
         self.borderless_switch = QtWidgets.QCheckBox("Borderless Window", self)
         self.rounded_corners_switch = QtWidgets.QCheckBox("Rounded Corners (Requires Restart and Borderless mode)", self)
-        self.always_on_top_switch = QtWidgets.QCheckBox("Always on Top (Requires Restart)", self)
+        self.always_on_top_switch = QtWidgets.QCheckBox("Always on Top", self)
         self.translucent_background_switch = QtWidgets.QCheckBox("Translucent Background (Requires Restart)", self)
         self.checkboxes_layout.addWidget(self.message_label)
         self.message_label.setStyleSheet("font-style: italic; color: grey;")
@@ -43,8 +44,8 @@ class SettingsPopup(QtWidgets.QDialog):
         self.checkboxes_layout.addWidget(self.compositing_label)
         self.compositing_label.setStyleSheet("font-weight: bold;")
         self.checkboxes_layout.addWidget(self.borderless_switch)
-        self.checkboxes_layout.addWidget(self.rounded_corners_switch)
         self.checkboxes_layout.addWidget(self.always_on_top_switch)
+        self.checkboxes_layout.addWidget(self.rounded_corners_switch)
         self.checkboxes_layout.addWidget(self.translucent_background_switch)
 
         self.dark_mode_switch.setChecked(config["Settings"]["dark_mode"])
@@ -271,8 +272,12 @@ class SettingsPopup(QtWidgets.QDialog):
             config = toml.load(file)
             if state == 0:
                 config['Settings']['always_on_top'] = False
+                self.parent().setWindowFlag(Qt.WindowStaysOnTopHint, False)
+                self.parent().toggle_window()
             elif state == 2:
                 config['Settings']['always_on_top'] = True
+                self.parent().setWindowFlag(Qt.WindowStaysOnTopHint)
+                self.parent().toggle_window()
             file.seek(0)
             toml.dump(config, file)
             file.truncate()
@@ -451,6 +456,8 @@ class MainWindow(QtWidgets.QWidget):
         if platform.system() == "Windows":
             keyboard.add_hotkey(config["Settings"]["hotkey"], self.toggle_window)
             keyboard.add_hotkey("escape", self.escape_pressed)
+            def print_thing():
+                print("konami code entered")
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.textbox_layout = QtWidgets.QHBoxLayout()
@@ -511,6 +518,7 @@ class MainWindow(QtWidgets.QWidget):
         self.scroll_area = QtWidgets.QScrollArea(self)
         self.scroll_area.setFrameShape(QtWidgets.QScrollArea.NoFrame)
         self.label = QtWidgets.QLabel(self)
+        self.label.setStyleSheet(f"font-size: {config["Settings"]["font_size"]}px;")
         self.scroll_area.setWidget(self.label)
         self.scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -531,7 +539,7 @@ class MainWindow(QtWidgets.QWidget):
         program_list = list_programs()
         text = ""
         for i in range(len(program_list)):
-            text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1].title() + "\n"
+            text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
         self.change_text(text)
 
         self.m_drag = False
@@ -601,17 +609,34 @@ class MainWindow(QtWidgets.QWidget):
     @QtCore.Slot()
     def on_text_changed(self, text):
         if text.lower() == "exit":
+            self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 2}px;")
             self.change_text("Press Enter to Exit.")
         else:
             narrowed_list = narrow_down(text)
             new_text = ""
             for i in range(len(narrowed_list)):
-                new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1].title() + "\n"
+                new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
+            if is_calculation(self.textbox.text()):
+                if new_text == "666":
+                    new_text = "The Number of the Beast"
+                    print("ok")
+                elif new_text == "668" or new_text == "664":
+                    new_text = "The Neighbour of the Beast"
+                self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 4}px;")
+                new_text = "=" + new_text.replace("inf", "Basically ∞").replace("nan", "Not a Number")
+            else:
+                self.label.setStyleSheet(f"font-size: {config["Settings"]["font_size"]}px;")
+            if ("life" in self.textbox.text() or "universe" in self.textbox.text() or "everything" in self.textbox.text()) and ("*" in self.textbox.text() or "+" in self.textbox.text() or "-" in self.textbox.text() or "/" in self.textbox.text()):
+                self.label.setStyleSheet(f"font-size: {config["Settings"]["font_size"] * 4}px;")
+                new_text = "=42"
+            if new_text.startswith("Error:"):
+                self.label.setStyleSheet(f"font-size: {config["Settings"]["font_size"] * 2}px;")
             self.change_text(new_text)
 
     @QtCore.Slot()
     def change_text(self, text):
         self.label.setText(text)
+        self.label.setToolTip(text)
         with open('config.toml', 'r') as file:
             config = toml.load(file)
             self.label.setFixedWidth(config["Settings"]["width"])
