@@ -1,4 +1,4 @@
-import os, pathlib, subprocess, config, toml, re, webbrowser, math, platform
+import os, pathlib, subprocess, config, toml, re, webbrowser, math, platform, winreg
 if platform.system() == "Windows":
     import win32com.client as win32
 elif platform.system() == "Linux":
@@ -7,6 +7,12 @@ from pathlib import Path
 
 with open("config.toml", "r") as f:
     config = toml.loads(f.read())
+
+def get_windows_theme():
+    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize')
+    value, regtype = winreg.QueryValueEx(key, 'AppsUseLightTheme')
+
+    return 'light' if value == 1 else 'dark'
 
 def current_user() -> str:
     return os.getlogin()

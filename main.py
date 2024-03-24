@@ -1,5 +1,5 @@
 import sys, toml, os, platform, subprocess, signal, psutil
-from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory, QApplication, QSystemTrayIcon, QMenu
+from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QWidget, QSizePolicy
 from PySide6.QtCore import Qt, Slot, QTimer
 from PySide6.QtGui import QIcon, QPainterPath, QColor
 from PySide6 import QtCore, QtWidgets, QtGui
@@ -8,14 +8,14 @@ from pathlib import Path
 if platform.system() == "Windows":
     import keyboard
 
-from utils import list_programs, narrow_down, determine_program, load_themes, is_calculation
+from utils import list_programs, narrow_down, determine_program, load_themes, is_calculation, get_windows_theme
 
 class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"{config["Settings"]["program_title"]} Settings")
-        self.resize(650, 500)
         self.main_layout = QtWidgets.QVBoxLayout(self)
+        self.main_layout.setStretch
         self.tab_widget = QtWidgets.QTabWidget(self)
         self.main_layout.addWidget(self.tab_widget)
         self.first_tab = QtWidgets.QWidget(self)
@@ -28,7 +28,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.tab_widget.addTab(self.fourth_tab, "Config &File")
 
         # First tab
-        self.first_tab_layout = QtWidgets.QGridLayout(self.first_tab)
+        self.first_tab_layout = QtWidgets.QVBoxLayout(self.first_tab)
         self.dark_mode_switch = QtWidgets.QCheckBox("Dark Mode", self)
         self.dark_mode_switch.setChecked(config["Settings"]["dark_mode"])
         self.dark_mode_switch.stateChanged.connect(self.change_theme)
@@ -150,6 +150,9 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.edit_toml_button = QtWidgets.QPushButton("Edit TOML In Text Editor", self)
         self.edit_toml_button.clicked.connect(self.edit_toml)
         self.fourth_tab_layout.addWidget(self.edit_toml_button)
+
+        self.main_layout.setSpacing(0)
+        self.tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum)
 
     def closeEvent(self, event):
         self.parent().textbox.setFocus()
@@ -1131,6 +1134,13 @@ if platform.system() == "Linux":
 if __name__ == "__main__":
     with open('config.toml', 'r') as file:
         config = toml.load(file)
+        if config["Settings"]["dark_mode"]:
+            theme = "dark"
+        else:
+            theme = "light"
+
+    if platform.system() == "Windows":
+        windows_theme = get_windows_theme()
 
     # if platform.system() == "Linux":
     #     if os.geteuid() != 0:
@@ -1155,7 +1165,7 @@ if __name__ == "__main__":
 
     app = QApplication([])
     app.setStyle("Macintosh" if platform.system() == "Darwin" else "Fusion")
-    app.setWindowIcon(QIcon("logo.png"))
+    app.setWindowIcon(QIcon(str(Path("images", f"logo-{theme}.svg"))))
 
     if platform.system() == "Linux":
         timer = QTimer()
@@ -1166,21 +1176,17 @@ if __name__ == "__main__":
     widget.setWindowFlag(QtCore.Qt.Window)
 
     tray = QSystemTrayIcon()
-    tray.setIcon(QIcon("logo.png"))
+    tray.setIcon(QIcon(str(Path("images", f"logo-{'light' if windows_theme == 'dark' else 'dark'}.svg"))))
     tray.setVisible(True)
     tray.setToolTip(f"{config["Settings"]["program_title"]}")
 
     menu = QMenu()
-    if config["Settings"]["dark_mode"]:
-        theme = "dark"
-    else:
-        theme = "light"
     
-    menu.addAction(QIcon("logo.png"), config["Settings"]["program_title"])
+    menu.addAction(QIcon(str(Path("images", f"logo-{theme}.svg"))), config["Settings"]["program_title"])
 
     show_action = menu.addAction(QIcon(str(Path("images", f"hide-{theme}.svg"))), "&Toggle")
     settings_action = menu.addAction(QIcon(str(Path("images", f"settings-{theme}.svg"))), "&Preferences")
-    reset_position_action = menu.addAction(QIcon(str(Path("images", f"clear-{theme}.svg"))), "&Reset Position")
+    reset_position_action = menu.addAction(QIcon(str(Path("images", f"center-{theme}.svg"))), "&Reset Position")
     exit_action = menu.addAction(QIcon(str(Path("images", f"exit-{theme}.svg"))), "&Quit")
     tray.setContextMenu(menu)
 
