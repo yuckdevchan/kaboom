@@ -1,12 +1,14 @@
-import sys, toml, os, platform, subprocess, signal, psutil
+import sys, toml, os, platform, subprocess, signal, psutil, vlc, PySide6
 from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QWidget, QSizePolicy
-from PySide6.QtCore import Qt, Slot, QTimer
+from PySide6.QtCore import Qt, Slot, QTimer, QUrl
 from PySide6.QtGui import QIcon, QPainterPath, QColor
+from PySide6.QtMultimedia import QMediaPlayer
 from PySide6 import QtCore, QtWidgets, QtGui
 from pathlib import Path
 
 if platform.system() == "Windows":
     import keyboard
+    import wmi
 
 from utils import list_programs, narrow_down, determine_program, load_themes, is_calculation, get_windows_theme
 
@@ -14,18 +16,22 @@ class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"{config["Settings"]["program_title"]} Settings")
+        self.resize(600, 100)
         self.main_layout = QtWidgets.QVBoxLayout(self)
-        self.main_layout.setStretch
         self.tab_widget = QtWidgets.QTabWidget(self)
         self.main_layout.addWidget(self.tab_widget)
         self.first_tab = QtWidgets.QWidget(self)
         self.second_tab = QtWidgets.QWidget(self)
         self.third_tab = QtWidgets.QWidget(self)
         self.fourth_tab = QtWidgets.QWidget(self)
+        self.fifth_tab = QtWidgets.QWidget(self)
+        self.sixth_tab = QtWidgets.QWidget(self)
         self.tab_widget.addTab(self.first_tab, "&Appearance")
         self.tab_widget.addTab(self.second_tab, "&Compositing")
         self.tab_widget.addTab(self.third_tab, "&Search")
+        self.tab_widget.addTab(self.fifth_tab, "&Music")
         self.tab_widget.addTab(self.fourth_tab, "Config &File")
+        self.tab_widget.addTab(self.sixth_tab, "A&bout")
 
         # First tab
         self.first_tab_layout = QtWidgets.QVBoxLayout(self.first_tab)
@@ -53,7 +59,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         # Second tab
         self.second_tab_layout = QtWidgets.QGridLayout(self.second_tab)
 
-        self.opacity_label = QtWidgets.QLabel(f"Opacity: {config['Settings']['opacity'] * 100}%", self)
+        self.opacity_label = QtWidgets.QLabel(f"Opacity: {int(config['Settings']['opacity'] * 100)}%", self)
         self.second_tab_layout.addWidget(self.opacity_label)
 
         self.opacity_slider = QtWidgets.QSlider(Qt.Horizontal, self)
@@ -152,7 +158,108 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.fourth_tab_layout.addWidget(self.edit_toml_button)
 
         self.main_layout.setSpacing(0)
-        self.tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum)
+
+        # fifth tab
+        self.fifth_tab_layout = QtWidgets.QVBoxLayout(self.fifth_tab)
+        
+        self.bgm_switch = QtWidgets.QCheckBox("Background Music", self)
+        self.bgm_switch.setChecked(config["Settings"]["bgm"])
+        self.bgm_switch.stateChanged.connect(self.change_bgm)
+        self.fifth_tab_layout.addWidget(self.bgm_switch)
+
+        self.auto_pause_bgm = QtWidgets.QCheckBox("Pause Music When Hidden", self)
+        self.auto_pause_bgm.setChecked(config["Settings"]["auto_pause_bgm"])
+        self.auto_pause_bgm.stateChanged.connect(self.change_auto_pause_bgm)
+        self.fifth_tab_layout.addWidget(self.auto_pause_bgm)
+
+        self.bgm_volume_label = QtWidgets.QLabel(f"Volume: {int(config["Settings"]["bgm_volume"] * 100)}%", self)
+        self.fifth_tab_layout.addWidget(self.bgm_volume_label)
+        self.bgm_volume_slider = QtWidgets.QSlider(Qt.Horizontal, self)
+        self.bgm_volume_slider.setMinimum(0)
+        self.bgm_volume_slider.setMaximum(100)
+        self.bgm_volume_slider.setValue(config["Settings"]["bgm_volume"] * 100)
+        self.bgm_volume_slider.valueChanged.connect(self.change_bgm_volume)
+        self.fifth_tab_layout.addWidget(self.bgm_volume_slider)
+
+        # sixth tab
+        self.sixth_tab_layout = QtWidgets.QVBoxLayout(self.sixth_tab)
+
+        self.kaboom_logo = QtWidgets.QLabel(self)
+        if config["Settings"]["dark_mode"]:
+            theme = "dark"
+        else:
+            theme = "light"
+        self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path(f"images/logo-{theme}.svg"))))
+        self.sixth_tab_layout.addWidget(self.kaboom_logo)
+
+        self.kaboom_info_title = QtWidgets.QLabel("Kaboom Info:", self)
+        self.kaboom_info_title.setStyleSheet("font-weight: bold;")
+        self.sixth_tab_layout.addWidget(self.kaboom_info_title)
+
+        self.kaboom_info = QtWidgets.QLabel(f'Config File Location: {os.path.abspath('config.toml')}\nProgram Version: {config["Settings"]["program_version"]}', self)
+        self.sixth_tab_layout.addWidget(self.kaboom_info)
+
+        self.your_pc_info_title = QtWidgets.QLabel("Your PC Info:", self)
+        self.your_pc_info_title.setStyleSheet("font-weight: bold;")
+        self.sixth_tab_layout.addWidget(self.your_pc_info_title)
+
+        if platform.system() == "Windows":
+            manufacturer_and_model = f"{wmi.WMI().Win32_ComputerSystem()[0].Manufacturer} - {wmi.WMI().Win32_ComputerSystem()[0].Model}"
+        elif platform.system() == "Linux":
+            try:
+                with open("/sys/class/dmi/id/sys_vendor") as f:
+                    manufacturer = f.read().strip()
+                with open("/sys/class/dmi/id/product_name") as f:
+                    model = f.read().strip()
+                manufacturer_and_model = f"{manufacturer} - {model}"
+            except FileNotFoundError:
+                manufacturer_and_model = "Unknown"
+        self.your_pc_info = QtWidgets.QLabel(f"""OS: {platform.system()} {platform.release()} 
+OS Build: {platform.version()} 
+Architecture: {platform.machine().replace("AMD64", "x86_64")} 
+CPU: {platform.processor()} 
+RAM: {psutil.virtual_memory().total / 1024**3:.2f} GB
+Disk Space: {psutil.disk_usage('/').total / 1024**3:.2f} GB
+Manufacturer & Model: {manufacturer_and_model}
+Python Version: {platform.python_version()}
+PySide6 Version: {PySide6.__version__}
+Qt Version: {PySide6.QtCore.__version__}
+""", self)
+        self.sixth_tab_layout.addWidget(self.your_pc_info)
+
+    def change_bgm(self, state):
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                self.parent().player.pause()
+                config['Settings']['bgm'] = False
+            elif state == 2:
+                self.parent().player.play()
+                config['Settings']['bgm'] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
+    def change_auto_pause_bgm(self, state):
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                config['Settings']['auto_pause_bgm'] = False
+            elif state == 2:
+                config['Settings']['auto_pause_bgm'] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
+    def change_bgm_volume(self, value):
+        self.bgm_volume_label.setText(f"Volume: {value}%")
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            config['Settings']['bgm_volume'] = value / 100
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+            self.parent().player.audio_set_volume(value)
 
     def closeEvent(self, event):
         self.parent().textbox.setFocus()
@@ -548,6 +655,12 @@ class MainWindow(QtWidgets.QWidget):
             config = toml.load(file)
             self.draggable_window = config["Settings"]["draggable_window"]
 
+    def play_audio(self):
+        self.player = vlc.MediaPlayer(str(Path("sounds", "chris-eighties.mp3")))
+
+        self.player.audio_set_volume(int(config["Settings"]["bgm_volume"] * 100))
+        self.player.play()
+
     def mousePressEvent(self, event):
         if self.draggable_window and event.button() == QtCore.Qt.LeftButton:
             self.m_drag = True
@@ -565,6 +678,10 @@ class MainWindow(QtWidgets.QWidget):
             self.m_drag = False
         
     def toggle_window(self):
+        with open ('config.toml', 'r') as file:
+            config = toml.load(file)
+        if config["Settings"]["auto_pause_bgm"] and config["Settings"]["bgm"]:
+            self.player.pause()
         if self.isVisible():
             self.hide()
         else:
@@ -754,12 +871,12 @@ if __name__ == "__main__":
 
     menu = QMenu()
     
-    menu.addAction(QIcon(str(Path("images", f"logo-{theme}.svg"))), config["Settings"]["program_title"])
+    menu.addAction(QIcon(str(Path("images", f"logo-light.svg"))), config["Settings"]["program_title"])
 
-    show_action = menu.addAction(QIcon(str(Path("images", f"hide-{theme}.svg"))), "&Toggle")
-    settings_action = menu.addAction(QIcon(str(Path("images", f"settings-{theme}.svg"))), "&Preferences")
-    reset_position_action = menu.addAction(QIcon(str(Path("images", f"center-{theme}.svg"))), "&Reset Position")
-    exit_action = menu.addAction(QIcon(str(Path("images", f"exit-{theme}.svg"))), "&Quit")
+    show_action = menu.addAction(QIcon(str(Path("images", f"hide-light.svg"))), "&Toggle")
+    settings_action = menu.addAction(QIcon(str(Path("images", f"settings-light.svg"))), "&Preferences")
+    reset_position_action = menu.addAction(QIcon(str(Path("images", f"center-light.svg"))), "&Reset Position")
+    exit_action = menu.addAction(QIcon(str(Path("images", f"exit-light.svg"))), "&Quit")
     tray.setContextMenu(menu)
 
     tray.activated.connect(widget.tray_toggle_window)
@@ -768,24 +885,24 @@ if __name__ == "__main__":
     reset_position_action.triggered.connect(widget.center_window)
     exit_action.triggered.connect(sys.exit)
 
-    with open('config.toml', 'r') as file:
-        config = toml.load(file)
-        font = QtGui.QFont(config["Settings"]["font_family"], config["Settings"]["font_size"])
-        app.setFont(font)
-        if config["Settings"]["borderless"]:
-            widget.setWindowFlag(Qt.FramelessWindowHint)
-        if config["Settings"]["always_on_top"]:
-            widget.setWindowFlag(Qt.WindowStaysOnTopHint)
-        if config["Settings"]["translucent_background"]:
-            widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        widget.resize(config["Settings"]["width"], config["Settings"]["height"])
-        widget.setWindowOpacity(config["Settings"]["opacity"])
-        widget.setWindowTitle(config["Settings"]["program_title"])
-        if config["Settings"]["sidebar_mode"]:
-            widget.move(0, 0)
-            widget.setFixedHeight(QtWidgets.QApplication.primaryScreen().size().height())
-        else:
-            widget.move((QtWidgets.QApplication.primaryScreen().size().width() - widget.width()) / 2, (QtWidgets.QApplication.primaryScreen().size().height() - widget.height()) / 2)
-    widget.show()
+    font = QtGui.QFont(config["Settings"]["font_family"], config["Settings"]["font_size"])
+    app.setFont(font)
+    if config["Settings"]["borderless"]:
+        widget.setWindowFlag(Qt.FramelessWindowHint)
+    if config["Settings"]["always_on_top"]:
+        widget.setWindowFlag(Qt.WindowStaysOnTopHint)
+    if config["Settings"]["translucent_background"]:
+        widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+    widget.resize(config["Settings"]["width"], config["Settings"]["height"])
+    widget.setWindowOpacity(config["Settings"]["opacity"])
+    widget.setWindowTitle(config["Settings"]["program_title"])
+    if config["Settings"]["sidebar_mode"]:
+        widget.move(0, 0)
+        widget.setFixedHeight(QtWidgets.QApplication.primaryScreen().size().height())
+    else:
+        widget.move((QtWidgets.QApplication.primaryScreen().size().width() - widget.width()) / 2, (QtWidgets.QApplication.primaryScreen().size().height() - widget.height()) / 2)
 
+    widget.show()
+    if config["Settings"]["bgm"]:
+        QtCore.QTimer.singleShot(0, widget.play_audio)
     sys.exit(app.exec())
