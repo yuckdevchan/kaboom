@@ -92,13 +92,26 @@ def get_steam_appid(game_name):
 def is_calculation(s):
     try:
         # eval(s, {"__builtins__": None, **math.__dict__})
-        if ("*" in s or "/" in s or "-" in s or "+" in s or "sqrt" in s) or (s == "e") or (s == "pi"):
+        if ("*" in s or "/" in s or "-" in s or "+" in s or "sqrt" in s) or (s == "e") or (s == "pi") or ("sin(" in s):
             return True
     except Exception as e:
         return False
     
 def search_web(search_text):
-    webbrowser.open(f"{config["Search_Engines"][config["Settings"]["default_search_engine"]]}{search_text}")
+    with open(Path("data", "tlds.txt"), "r") as f:
+        tlds = f.readlines()
+        for tld in tlds:
+            tld = "." + tld.replace("\n", "").lower()
+            if search_text.replace("\n", "").endswith(tld):
+                url = True
+                break
+            else:
+                url = False
+        if url == True:
+            webbrowser.open(search_text)
+            print("sorry if it opened in microsoft edge :(")
+        else:
+            webbrowser.open(f"{config["Search_Engines"][config["Settings"]["default_search_engine"]]}{search_text}")
     return ["Searched the web."]
 
 def remove_specials(string):
@@ -110,17 +123,17 @@ def remove_specials(string):
 def narrow_down(search_text):
     program_list = list_programs()
     narrowed_list = []
-    if search_text.startswith("steam:"):
+    if search_text.startswith("steam:") and config["Settings"]["search_steam"]:
         narrowed_list = list_steam_games(search_text.split("steam:")[1])
-    elif search_text.startswith("bsman:"):
+    elif search_text.startswith("bsman:") and config["Settings"]["search_bsman"]:
         narrowed_list = list_bs_instances(search_text.split("bsman:")[1])
-    elif is_calculation(search_text):
+    elif is_calculation(search_text) and config["Settings"]["search_calculator"]:
         try:
             result = eval(search_text, {"__builtins__": None, **math.__dict__})
             narrowed_list = [str(result)]
         except Exception as e:
             narrowed_list = ["Error: " + str(e).title()]
-    elif search_text.startswith("web:"):
+    elif search_text.startswith("web:") and config["Settings"]["search_web"]:
         narrowed_list = ["Press Enter to Search the Web."]
     elif search_text.startswith("rizzler"):
         narrowed_list = ["""
@@ -187,13 +200,13 @@ def run_shortcut(shortcut: str):
 def determine_program(string):
     narrowed_list = narrow_down(string)
     if len(narrowed_list) > 0:
-        if string.startswith("steam:"):
+        if string.startswith("steam:") and config["Settings"]["search_steam"]:
             appid = get_steam_appid(narrowed_list[0])
             if appid is not None:
                 webbrowser.open(f"steam://rungameid/{appid}")
-        elif string.startswith("bsman:"):
+        elif string.startswith("bsman:") and config["Settings"]["search_bsman"]:
             launch_program_cwd(f"{config['Settings']['bsman_path'].replace('<CURRENT_USER>', current_user())}\\{narrowed_list[0]}\\Beat Saber.exe", f"{config['Settings']['bsman_path'].replace('<CURRENT_USER>', current_user())}\\{narrowed_list[0]}")
-        elif string.startswith("web:"):
+        elif string.startswith("web:") and config["Settings"]["search_web"]:
             search_web(string.split("web:")[1])
         else:
             file_name = narrowed_list[0]
