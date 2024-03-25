@@ -1,7 +1,7 @@
 import sys, toml, os, platform, subprocess, signal, psutil, vlc, PySide6
-from PySide6.QtWidgets import QGraphicsDropShadowEffect, QStyle, QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QWidget, QSizePolicy
+from PySide6.QtWidgets import QLabel, QGraphicsDropShadowEffect, QStyle, QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QWidget, QSizePolicy
 from PySide6.QtCore import Qt, Slot, QTimer, QUrl
-from PySide6.QtGui import QIcon, QPainterPath, QColor
+from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6 import QtCore, QtWidgets, QtGui
 from pathlib import Path
@@ -35,10 +35,13 @@ class SettingsPopup2(QtWidgets.QDialog):
 
         # First tab
         self.first_tab_layout = QtWidgets.QVBoxLayout(self.first_tab)
+        
         self.dark_mode_switch = QtWidgets.QCheckBox("Dark Mode", self)
         self.dark_mode_switch.setChecked(config["Settings"]["dark_mode"])
         self.dark_mode_switch.stateChanged.connect(self.change_theme)
         self.first_tab_layout.addWidget(self.dark_mode_switch)
+
+        self.themes_combobox = QtWidgets.QComboBox(self)
         
         self.colour_overlay_switch = QtWidgets.QCheckBox("Colour Overlay", self)
         self.colour_overlay_switch.setChecked(config["Settings"]["colour_overlay_mode"])
@@ -231,10 +234,12 @@ Qt Version: {PySide6.QtCore.__version__}
         with open('config.toml', 'r+') as file:
             config = toml.load(file)
             if state == 0:
-                self.parent().player.pause()
+                if hasattr(self.parent(), "player"):
+                    self.parent().player.pause()
                 config['Settings']['bgm'] = False
             elif state == 2:
-                self.parent().player.play()
+                if hasattr(self.parent(), "player"):
+                    self.parent().player.play()
                 config['Settings']['bgm'] = True
             file.seek(0)
             toml.dump(config, file)
@@ -655,8 +660,17 @@ class MainWindow(QtWidgets.QWidget):
             config = toml.load(file)
             self.draggable_window = config["Settings"]["draggable_window"]
 
+
+    def update_font_size(self):
+        # volume = self.player.audio_get_volume()
+        # print(int(volume))
+        # font = self.textbox.font()
+        # font.setPointSize(volume)
+        # self.textbox.setFont(font)
+        pass
+
     def play_audio(self):
-        self.player = vlc.MediaPlayer(str(Path("sounds", "chris-eighties.mp3")))
+        self.player = vlc.MediaPlayer(str(Path("sounds", "griddy.wav")))
 
         self.player.audio_set_volume(int(config["Settings"]["bgm_volume"] * 100))
         self.player.play()
@@ -700,7 +714,7 @@ class MainWindow(QtWidgets.QWidget):
         widget.move((QtWidgets.QApplication.primaryScreen().size().width() - widget.width()) / 2, (QtWidgets.QApplication.primaryScreen().size().height() - widget.height()) / 2)
 
     def escape_pressed(self):
-        if self.isVisible():
+        if self.isVisible:
             self.hide()
 
     def open_settings(self):
@@ -865,7 +879,8 @@ if __name__ == "__main__":
     widget.setWindowFlag(QtCore.Qt.Window)
 
     tray = QSystemTrayIcon()
-    tray.setIcon(QIcon(str(Path("images", f"logo-{'light' if windows_theme == 'dark' else 'dark'}.svg"))))
+    # tray.setIcon(QIcon(str(Path("images", f"logo-{'light' if windows_theme == 'dark' else 'dark'}.svg"))))
+    tray.setIcon(QIcon(str(Path("images", f"logo-dark.svg"))))
     tray.setVisible(True)
     tray.setToolTip(f"{config["Settings"]["program_title"]}")
 
@@ -905,4 +920,9 @@ if __name__ == "__main__":
     widget.show()
     if config["Settings"]["bgm"]:
         QtCore.QTimer.singleShot(0, widget.play_audio)
+
+    label = QLabel("Volume")
+    timer = QTimer()
+    timer.timeout.connect(widget.update_font_size)
+    timer.start(100)
     sys.exit(app.exec())

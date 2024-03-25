@@ -184,7 +184,8 @@ def run_shortcut(shortcut: str):
     if platform.system() == "Windows":
         shell = win32.Dispatch("WScript.Shell")
         shortcut = shell.CreateShortCut(shortcut)
-        subprocess.Popen([shortcut.Targetpath] + shortcut.Arguments.split(), cwd=shortcut.WorkingDirectory)
+        print(f"Launched '{shortcut.Targetpath} {shortcut.Arguments}'")
+        subprocess.Popen([shortcut.Targetpath] + shortcut.Arguments.split())
     elif platform.system() == "Linux":
         config = configparser.ConfigParser(interpolation=None)
         config.read(shortcut)

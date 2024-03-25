@@ -1,0 +1,7 @@
+[Light]
+background = "#f2f2f2"
+foreground = "#000000"
+
+[Dark]
+background = "#27282a"
+foregroudn = "#ffffff"
