@@ -1,5 +1,7 @@
 [Settings]
 dark_mode = false
+theme = "kaboom"
+theme_style = "light"
 colour_overlay_mode = false
 dark_mode_bg = "#27282a"
 dark_mode_text = "#FFFFFF"
@@ -10,6 +12,7 @@ colour_overlay_text = "#000000"
 qt_style = "Fusion.qss"
 hotkey = "shift + left shift"
 bgm = false
+bgm_file = "griddy.wav"
 bgm_volume = 0.5
 auto_pause_bgm = true
 font_family = "Segoe UI"

@@ -1,7 +1,9 @@
-[Light]
+[light]
+dark = false
 background = "#f2f2f2"
 foreground = "#000000"
 
-[Dark]
+[dark]
+dark = true
 background = "#27282a"
-foregroudn = "#ffffff"
+foreground = "#ffffff"

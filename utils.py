@@ -230,9 +230,16 @@ def determine_program(string):
 def load_themes():
     themes = []
     for file in os.listdir("themes"):
-        if file.endswith(".qss"):
+        if file.endswith(".toml"):
                 themes.append(file)
     return themes
+
+def load_qt_styles():
+    qt_styles = []
+    for file in os.listdir("themes"):
+        if file.endswith(".qss"):
+                qt_styles.append(file)
+    return qt_styles
 
 
 def cli():

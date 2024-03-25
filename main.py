@@ -10,7 +10,7 @@ if platform.system() == "Windows":
     import keyboard
     import wmi
 
-from utils import list_programs, narrow_down, determine_program, load_themes, is_calculation, get_windows_theme
+from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme
 
 class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
@@ -36,25 +36,42 @@ class SettingsPopup2(QtWidgets.QDialog):
         # First tab
         self.first_tab_layout = QtWidgets.QVBoxLayout(self.first_tab)
         
-        self.dark_mode_switch = QtWidgets.QCheckBox("Dark Mode", self)
-        self.dark_mode_switch.setChecked(config["Settings"]["dark_mode"])
-        self.dark_mode_switch.stateChanged.connect(self.change_theme)
-        self.first_tab_layout.addWidget(self.dark_mode_switch)
+        self.theme_label = QtWidgets.QLabel("Colour Theme", self)
+        self.theme_label.setStyleSheet("font-weight: bold;")
+        self.first_tab_layout.addWidget(self.theme_label)
 
         self.themes_combobox = QtWidgets.QComboBox(self)
-        
-        self.colour_overlay_switch = QtWidgets.QCheckBox("Colour Overlay", self)
-        self.colour_overlay_switch.setChecked(config["Settings"]["colour_overlay_mode"])
-        self.colour_overlay_switch.stateChanged.connect(self.change_colour_overlay)
-        self.first_tab_layout.addWidget(self.colour_overlay_switch)
+        themes = load_themes()
+        themes_without_file_extension = [theme.replace(".toml", "") for theme in themes]
+        self.themes_combobox.addItems(themes_without_file_extension)
+        self.themes_combobox.setCurrentText(config["Settings"]["theme"])
+        self.themes_combobox.currentTextChanged.connect(self.change_theme2)
+        self.first_tab_layout.addWidget(self.themes_combobox)
+
+        self.theme_style_label = QtWidgets.QLabel("Theme Style", self)
+        self.theme_style_label.setStyleSheet("font-weight: bold;")
+        self.first_tab_layout.addWidget(self.theme_style_label)
+
+        self.theme_style = QtWidgets.QButtonGroup(self)
+        with open(Path("themes", f"{config['Settings']['theme']}.toml"), "r") as theme_file:
+            theme = toml.load(theme_file)
+            theme_styles = list(theme.keys())
+            for i in range(len(theme_styles)):
+                self.theme_style_radio = QtWidgets.QRadioButton(theme_styles[i].title(), self)
+                self.theme_style.addButton(self.theme_style_radio)
+                self.first_tab_layout.addWidget(self.theme_style_radio)
+        # set button group's current button
+        self.theme_style_radio = self.theme_style.buttons()[theme_styles.index(config["Settings"]["theme_style"].lower())]
+        self.theme_style.buttonClicked.connect(self.change_theme2)
 
         self.qt_style_label = QtWidgets.QLabel("Qt Style", self)
+        self.qt_style_label.setStyleSheet("font-weight: bold;")
         self.first_tab_layout.addWidget(self.qt_style_label)
 
         self.qt_style_combobox = QtWidgets.QComboBox(self)
-        themes = load_themes()
-        themes_without_file_extension = [theme.replace(".qss", "") for theme in themes]
-        self.qt_style_combobox.addItems(QStyleFactory.keys() + themes_without_file_extension)
+        qt_styles = load_qt_styles()
+        qt_styles_without_file_extension = [qt_style.replace(".qss", "") for qt_style in qt_styles]
+        self.qt_style_combobox.addItems(QStyleFactory.keys() + qt_styles_without_file_extension)
         self.qt_style_combobox.setCurrentText(config["Settings"]["qt_style"].replace(".qss", ""))
         self.qt_style_combobox.currentTextChanged.connect(self.change_qt_style)
         self.first_tab_layout.addWidget(self.qt_style_combobox)
@@ -175,8 +192,18 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.auto_pause_bgm.stateChanged.connect(self.change_auto_pause_bgm)
         self.fifth_tab_layout.addWidget(self.auto_pause_bgm)
 
+        self.bgm_file_label = QtWidgets.QLabel("Music File (Place songs in the 'sounds' folder):", self)
+        self.fifth_tab_layout.addWidget(self.bgm_file_label)
+
+        self.bgm_file_combobox = QtWidgets.QComboBox(self)
+        self.bgm_file_combobox.addItems([file for file in os.listdir("sounds") if file.endswith(".mp3") or file.endswith(".wav")])
+        self.bgm_file_combobox.setCurrentText(config["Settings"]["bgm_file"])
+        self.bgm_file_combobox.currentTextChanged.connect(self.change_bgm_file)
+        self.fifth_tab_layout.addWidget(self.bgm_file_combobox)
+
         self.bgm_volume_label = QtWidgets.QLabel(f"Volume: {int(config["Settings"]["bgm_volume"] * 100)}%", self)
         self.fifth_tab_layout.addWidget(self.bgm_volume_label)
+
         self.bgm_volume_slider = QtWidgets.QSlider(Qt.Horizontal, self)
         self.bgm_volume_slider.setMinimum(0)
         self.bgm_volume_slider.setMaximum(100)
@@ -266,6 +293,19 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
             self.parent().player.audio_set_volume(value)
 
+    def change_bgm_file(self, text):
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            config['Settings']['bgm_file'] = text
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+            if hasattr(self.parent(), "player"):
+                self.parent().player.stop()
+                self.parent().player = vlc.MediaPlayer(str(Path("sounds", text)))
+                self.parent().player.audio_set_volume(int(config["Settings"]["bgm_volume"] * 100))
+                self.parent().player.play()
+
     def closeEvent(self, event):
         self.parent().textbox.setFocus()
 
@@ -307,6 +347,19 @@ Qt Version: {PySide6.QtCore.__version__}
             file.seek(0)
             toml.dump(config, file)
             file.truncate()
+
+    def change_theme2(self, state):
+        with open(Path("themes", f"{state}.toml"), "r") as file:
+            theme = toml.load(file)
+            theme_style = self.theme_style.checkedButton().text().lower()
+            bg_colour = theme[theme_style]["background"]
+            text_colour = theme[theme_style]["text"]
+            self.setStyleSheet(f"background-color: {bg_colour}; color: {text_colour};")
+            self.parent().setStyleSheet(f"background-color: {bg_colour}; color: {text_colour};")
+            self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
+            self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
+            self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
+            self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
 
     def change_colour_overlay(self, state):
         with open('config.toml', 'r+') as file:
@@ -670,7 +723,7 @@ class MainWindow(QtWidgets.QWidget):
         pass
 
     def play_audio(self):
-        self.player = vlc.MediaPlayer(str(Path("sounds", "griddy.wav")))
+        self.player = vlc.MediaPlayer(str(Path("sounds", config["Settings"]["bgm_file"])))
 
         self.player.audio_set_volume(int(config["Settings"]["bgm_volume"] * 100))
         self.player.play()
