@@ -330,8 +330,8 @@ Qt Version: {PySide6.QtCore.__version__}
 """)
             elif state == 2:
                 config['Settings']['dark_mode'] = True
-                self.setStyleSheet(f"background-color: {config["Settings"]["dark_mode_bg"]}; color: {config["Settings"]["dark_mode_text"]};")
-                self.parent().setStyleSheet(f"background-color: {config["Settings"]["dark_mode_bg"]}; color: {config["Settings"]["dark_mode_text"]};")
+                self.setStyleSheet(f"background-color: {config['Settings']['dark_mode_bg']}; color: {config['Settings']['dark_mode_text']};")
+                self.parent().setStyleSheet(f"background-color: {config['Settings']['dark_mode_bg']}; color: {config['Settings']['dark_mode_text']};")
                 self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
                 self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
                 self.parent().clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
