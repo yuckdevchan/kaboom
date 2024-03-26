@@ -935,7 +935,7 @@ if __name__ == "__main__":
     # tray.setIcon(QIcon(str(Path("images", f"logo-{'light' if windows_theme == 'dark' else 'dark'}.svg"))))
     tray.setIcon(QIcon(str(Path("images", f"logo-dark.svg"))))
     tray.setVisible(True)
-    tray.setToolTip(f"{config["Settings"]["program_title"]}")
+    tray.setToolTip(f"{config['Settings']['program_title']}")
 
     menu = QMenu()
     
