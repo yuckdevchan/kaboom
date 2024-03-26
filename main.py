@@ -920,7 +920,7 @@ if __name__ == "__main__":
     #         os.execlp('osascript', 'osascript', '-e', 'do shell script "{}" with administrator privileges'.format(' '.join(args)))
 
     app = QApplication([])
-    app.setStyle("Macintosh" if platform.system() == "Darwin" else "Fusion")
+    app.setStyle("macos" if platform.system() == "Darwin" else "Fusion")
     app.setWindowIcon(QIcon(str(Path("images", f"logo-{theme}.svg"))))
 
     if platform.system() == "Linux":
