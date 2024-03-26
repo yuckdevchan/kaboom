@@ -15,7 +15,7 @@ from utils import list_programs, narrow_down, determine_program, load_qt_styles,
 class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"{config["Settings"]["program_title"]} Settings")
+        self.setWindowTitle(f"{config['Settings']['program_title']} Settings")
         self.resize(600, 100)
         self.main_layout = QtWidgets.QVBoxLayout(self)
         self.tab_widget = QtWidgets.QTabWidget(self)
