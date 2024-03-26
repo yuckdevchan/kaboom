@@ -705,8 +705,12 @@ class MainWindow(QtWidgets.QWidget):
         program_list = list_programs()
         text = ""
         for i in range(len(program_list)):
-            text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
-        self.change_text(text)
+            # text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
+            # add button
+            self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1], self)
+            self.layout.addWidget(self.button)
+            self.button.setStyleSheet("border: solid; text-align: left;")
+        # self.change_text(text)
 
         self.m_drag = False
         self.m_DragPosition = QtCore.QPoint()
@@ -805,13 +809,15 @@ class MainWindow(QtWidgets.QWidget):
     @QtCore.Slot()
     def on_text_changed(self, text):
         if text.lower() == "exit":
-            self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 2}px;")
             self.change_text("Press Enter to Exit.")
         else:
             narrowed_list = narrow_down(text)
             new_text = ""
+            # remove all buttons
+            self.layout.removeWidget(self.button)
             for i in range(len(narrowed_list)):
-                new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
+                # new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
+                self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1], self)
             if is_calculation(self.textbox.text()):
                 if new_text.replace("\n", "") == "666":
                     new_text = "The Number of the Beast"
@@ -835,16 +841,15 @@ class MainWindow(QtWidgets.QWidget):
                 new_text = "=42"
             if new_text.startswith("Error:"):
                 self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 2}px;")
-            self.change_text(new_text)
 
     @QtCore.Slot()
     def change_text(self, text):
-        self.label.setText(text)
-        self.label.setToolTip(text)
+        # self.label.setText(text)
+        # self.label.setToolTip(text)
         with open('config.toml', 'r') as file:
             config = toml.load(file)
-            self.label.setFixedWidth(config["Settings"]["width"])
-            self.label.setFixedHeight(config["Settings"]["height"])
+            # self.label.setFixedWidth(config["Settings"]["width"])
+            # self.label.setFixedHeight(config["Settings"]["height"])
 
     @QtCore.Slot()
     def on_enter_pressed(self):

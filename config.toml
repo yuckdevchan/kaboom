@@ -16,7 +16,6 @@ bgm_file = "griddy.wav"
 bgm_volume = 0.5
 auto_pause_bgm = true
 font_family = "Segoe UI"
-font_path = false
 font_size = 12
 opacity = 1.0
 translucent_background = false
