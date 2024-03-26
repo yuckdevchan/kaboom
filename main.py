@@ -381,8 +381,8 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.parent().setStyleSheet(f"background-color: {bg_colour}; color: {text_colour};")
             elif state == 2:
                 config['Settings']['colour_overlay_mode'] = True
-                self.setStyleSheet(f"background-color: {config["Settings"]["colour_overlay_bg"]}; color: {config["Settings"]["colour_overlay_text"]};")
-                self.parent().setStyleSheet(f"background-color: {config["Settings"]["colour_overlay_bg"]}; color: {config["Settings"]["colour_overlay_text"]};")
+                self.setStyleSheet(f"background-color: {config['Settings']['colour_overlay_bg']}; color: {config['Settings']['colour_overlay_text']};")
+                self.parent().setStyleSheet(f"background-color: {config['Settings']['colour_overlay_bg']}; color: {config['Settings']['colour_overlay_text']};")
                 self.dark_mode_switch.setCheckable(False)
                 self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
             file.seek(0)
