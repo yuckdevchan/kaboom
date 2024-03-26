@@ -244,6 +244,8 @@ class SettingsPopup2(QtWidgets.QDialog):
                 manufacturer_and_model = f"{manufacturer} - {model}"
             except FileNotFoundError:
                 manufacturer_and_model = "Unknown"
+        elif platform.system() == "Darwin":
+            manufacturer_and_model = "Apple Inc. - Mac"
         self.your_pc_info = QtWidgets.QLabel(f"""OS: {platform.system()} {platform.release()} 
 OS Build: {platform.version()} 
 Architecture: {platform.machine().replace("AMD64", "x86_64")} 
