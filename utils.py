@@ -117,7 +117,7 @@ def search_web(search_text):
             webbrowser.open(search_text)
             print("sorry if it opened in microsoft edge :(")
         else:
-            webbrowser.open(f"{config["Search_Engines"][config["Settings"]["default_search_engine"]]}{search_text}")
+            webbrowser.open(f'{config["Search_Engines"][config["Settings"]["default_search_engine"]]}{search_text}')
     return ["Searched the web."]
 
 def remove_specials(string):
