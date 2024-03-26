@@ -315,7 +315,7 @@ Qt Version: {PySide6.QtCore.__version__}
             if state == 0:
                 config['Settings']['dark_mode'] = False
                 self.setStyleSheet(f"background-color: {config["Settings"]["light_mode_bg"]}; color: {config["Settings"]["light_mode_text"]};")
-                self.parent().setStyleSheet(f"background-color: {config["Settings"]["light_mode_bg"]}; color: {config["Settings"]["light_mode_text"]};")
+                self.parent().setStyleSheet(f"background-color: {config['Settings']['light_mode_bg']}; color: {config['Settings']['light_mode_text']};")
                 self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
                 self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
                 self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
