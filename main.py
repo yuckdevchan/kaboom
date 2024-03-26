@@ -590,7 +590,7 @@ Qt Version: {PySide6.QtCore.__version__}
         reset_popup.setText("Warning!\nPermanently reset all settings to default?\nThe program will close.")
         reset_popup.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         reset_popup.setDefaultButton(QtWidgets.QMessageBox.No)
-        reset_popup.setStyleSheet(f"background-color: {config["Settings"]["light_mode_bg"]}; color: {config["Settings"]["light_mode_text"]};")
+        reset_popup.setStyleSheet(f"background-color: {config['Settings']['light_mode_bg']}; color: {config['Settings']['light_mode_text']};")
         reset_popup.setIcon(QtWidgets.QMessageBox.Warning)
         reset_popup.buttonClicked.connect(self.reset_settings)
         reset_popup.exec()
@@ -652,12 +652,12 @@ class MainWindow(QtWidgets.QWidget):
         self.settings_button.setStyleSheet(self.button_style)
         self.settings_button.setToolTip("Preferences")
         self.exit_button = QtWidgets.QPushButton(self)
-        self.exit_button.setToolTip(f"Exit {config["Settings"]["program_title"]}")
+        self.exit_button.setToolTip(f"Exit {config['Settings']['program_title']}")
         self.exit_button.setFlat(True)
         self.exit_button.setStyleSheet(self.button_style)
         self.hide_button = QtWidgets.QPushButton(self)
         self.hide_button.setStyleSheet(self.button_style)
-        self.hide_button.setToolTip(f"Hide {config["Settings"]["program_title"]}")
+        self.hide_button.setToolTip(f"Hide {config['Settings']['program_title']}")
 
         self.clear_text_button = QtWidgets.QPushButton(self)
         self.clear_text_button.setToolTip("Clear Text Field")
@@ -682,7 +682,7 @@ class MainWindow(QtWidgets.QWidget):
         self.scroll_area = QtWidgets.QScrollArea(self)
         self.scroll_area.setFrameShape(QtWidgets.QScrollArea.NoFrame)
         self.label = QtWidgets.QLabel(self)
-        self.label.setStyleSheet(f"font-size: {config["Settings"]["font_size"]}px;")
+        self.label.setStyleSheet(f"font-size: {config['Settings']['font_size']}px;")
         self.scroll_area.setWidget(self.label)
         self.scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -827,12 +827,12 @@ class MainWindow(QtWidgets.QWidget):
                     self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 4}px;")
                 new_text = "=" + new_text.replace("inf", "Basically ∞").replace("nan", "Not a Number")
             else:
-                self.label.setStyleSheet(f"font-size: {config["Settings"]["font_size"]}px;")
+                self.label.setStyleSheet(f"font-size: {config['Settings']['font_size']}px;")
             if ("life" in self.textbox.text() or "universe" in self.textbox.text() or "everything" in self.textbox.text()) and ("*" in self.textbox.text() or "+" in self.textbox.text() or "-" in self.textbox.text() or "/" in self.textbox.text()):
-                self.label.setStyleSheet(f"font-size: {config["Settings"]["font_size"] * 4}px;")
+                self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 4}px;")
                 new_text = "=42"
             if new_text.startswith("Error:"):
-                self.label.setStyleSheet(f"font-size: {config["Settings"]["font_size"] * 2}px;")
+                self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 2}px;")
             self.change_text(new_text)
 
     @QtCore.Slot()
