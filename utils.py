@@ -53,6 +53,8 @@ def list_programs() -> list:
                 if file_.endswith(".desktop"):
                     desktop_files.append(str(file_))
         program_list = desktop_files
+    else platform.system() == "Darwin":
+        program_list = ["macOS is not supported."]
     return program_list
 
 def list_steam_games(search_text):
