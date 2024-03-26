@@ -201,7 +201,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.bgm_file_combobox.currentTextChanged.connect(self.change_bgm_file)
         self.fifth_tab_layout.addWidget(self.bgm_file_combobox)
 
-        self.bgm_volume_label = QtWidgets.QLabel(f"Volume: {int(config["Settings"]["bgm_volume"] * 100)}%", self)
+        self.bgm_volume_label = QtWidgets.QLabel(f"Volume: {int(config['Settings']['bgm_volume'] * 100)}%", self)
         self.fifth_tab_layout.addWidget(self.bgm_volume_label)
 
         self.bgm_volume_slider = QtWidgets.QSlider(Qt.Horizontal, self)
