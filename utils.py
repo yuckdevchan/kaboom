@@ -30,6 +30,10 @@ linux_directories = [
     f'/home/{current_user()}/.local/share/applications'
 ]
 
+macos_directories = [
+    '/Applications'
+]
+
 def launch_program(program):
     subprocess.Popen(program)
 
@@ -54,7 +58,10 @@ def list_programs() -> list:
                     desktop_files.append(str(file_))
         program_list = desktop_files
     elif platform.system() == "Darwin":
-        program_list = ["macOS is not supported."]
+        program_list = []
+        for directory in macos_directories:
+            for file in os.listdir(directory):
+                program_list.append(file)
     return program_list
 
 def list_steam_games(search_text):
