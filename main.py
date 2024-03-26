@@ -1,4 +1,4 @@
-import sys, toml, os, platform, subprocess, signal, psutil, vlc, PySide6
+import sys, toml, os, platform, subprocess, signal, psutil, PySide6
 from PySide6.QtWidgets import QLabel, QGraphicsDropShadowEffect, QStyle, QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QWidget, QSizePolicy
 from PySide6.QtCore import Qt, Slot, QTimer, QUrl
 from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont
@@ -972,6 +972,7 @@ if __name__ == "__main__":
 
     widget.show()
     if config["Settings"]["bgm"]:
+        import vlc
         QtCore.QTimer.singleShot(0, widget.play_audio)
 
     label = QLabel("Volume")
