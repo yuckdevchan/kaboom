@@ -226,7 +226,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.kaboom_info_title.setStyleSheet("font-weight: bold;")
         self.sixth_tab_layout.addWidget(self.kaboom_info_title)
 
-        self.kaboom_info = QtWidgets.QLabel(f'Config File Location: {os.path.abspath('config.toml')}\nProgram Version: {config['Settings']['program_version']}', self)
+        self.kaboom_info = QtWidgets.QLabel(f"Config File Location: {os.path.abspath('config.toml')}\nProgram Version: {config['Settings']['program_version']}", self)
         self.sixth_tab_layout.addWidget(self.kaboom_info)
 
         self.your_pc_info_title = QtWidgets.QLabel("Your PC Info:", self)
