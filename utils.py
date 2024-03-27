@@ -74,7 +74,6 @@ def list_programs() -> list:
 def list_steam_games(search_text):
     steam_path = config["Settings"]["steam_path"].replace("<CURRENT_USER>", current_user())
     steam_apps_path = Path(steam_path, "steamapps", "common")
-    print(str(steam_apps_path))
     if os.path.exists(steam_apps_path):
         steam_games = os.listdir(steam_apps_path)
         narrowed_list = []
@@ -226,6 +225,7 @@ def run_shortcut(shortcut: str):
 
 
 def determine_program(string):
+    print(string)
     narrowed_list = narrow_down(string)
     if len(narrowed_list) > 0:
         if string.startswith("steam:") and config["Settings"]["search_steam"]:

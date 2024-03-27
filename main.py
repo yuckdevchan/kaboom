@@ -15,6 +15,8 @@ from utils import list_programs, narrow_down, determine_program, load_qt_styles,
 class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        with open('config.toml', 'r') as file:
+            config = toml.load(file)
         self.setWindowTitle(f"{config['Settings']['program_title']} Settings")
         self.resize(600, 100)
         self.main_layout = QtWidgets.QVBoxLayout(self)
@@ -386,6 +388,7 @@ Qt Version: {PySide6.QtCore.__version__}
     def change_theme2(self, state):
         with open(Path("themes", f"{state}.toml"), "r") as file:
             theme = toml.load(file)
+            theme_toml = theme
             # if theme styles are different then change the theme style to the first one
             if self.theme_style.checkedButton().text().lower() not in theme.keys():
                 theme_style = list(theme.keys())[0]
@@ -410,6 +413,25 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.change_to_dark_icons(fg_colour=theme[theme_style]["foreground"])
             else:
                 self.change_to_light_icons(fg_colour=theme[theme_style]["foreground"])
+            
+            # write changes
+            with open('config.toml', 'r+') as file:
+                config = toml.load(file)
+                config['Settings']['theme'] = state
+                config['Settings']['theme_style'] = theme_style
+                file.seek(0)
+                toml.dump(config, file)
+                file.truncate()
+
+            if theme[theme_style]["button_qss"] != self.parent().button.styleSheet():
+                restart_kaboom = QtWidgets.QMessageBox(self)
+                restart_kaboom.setWindowTitle("Restart Kaboom")
+                restart_kaboom.setText("Restart Kaboom to apply changes?")
+                restart_kaboom.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+                restart_kaboom.button(QtWidgets.QMessageBox.No).setDisabled(True)
+                restart_kaboom.setDefaultButton(QtWidgets.QMessageBox.Yes)
+                restart_kaboom.buttonClicked.connect(sys.exit)
+                restart_kaboom.exec()
 
     def change_theme_radio(self, checked):
         self.change_theme2(self.themes_combobox.currentText())
@@ -665,14 +687,15 @@ class MainWindow(QtWidgets.QWidget):
         with open('config.toml', 'r') as file:
             config = toml.load(file)
             with open(Path("themes", f"{config['Settings']['theme']}.toml"), "r") as theme_file:
-                theme = toml.load(theme_file)
+                global theme_toml
+                theme_toml = toml.load(theme_file)
                 theme_style = config["Settings"]["theme_style"].lower()
-                bg_color = theme[theme_style]["background"]
-                fg_color = theme[theme_style]["foreground"]
-                text_color = theme[theme_style]["text"]
-                icon_color = theme[theme_style]["icons"]
+                bg_color = theme_toml[theme_style]["background"]
+                fg_color = theme_toml[theme_style]["foreground"]
+                text_color = theme_toml[theme_style]["text"]
+                icon_color = theme_toml[theme_style]["icons"]
                 global dark
-                dark = theme[theme_style]["dark"]
+                dark = theme_toml[theme_style]["dark"]
             self.setStyleSheet(f"background-color: {bg_color}; color: {text_color};")
 
         if platform.system() == "Windows":
@@ -791,8 +814,10 @@ class MainWindow(QtWidgets.QWidget):
             # text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
             # add button
             self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".kaboom", ""), self)
+            self.button.setToolTip("Click to launch")
+            self.button.setStyleSheet(theme_toml[theme_style]["button_qss"])
+            self.button.clicked.connect(lambda checked=False, text=program_list[i]: self.on_button_clicked(text))
             self.buttons_layout.addWidget(self.button)
-            self.button.setStyleSheet("border: solid; text-align: left;")
         # self.change_text(text)
 
         self.m_drag = False
@@ -802,6 +827,8 @@ class MainWindow(QtWidgets.QWidget):
             config = toml.load(file)
             self.draggable_window = config["Settings"]["draggable_window"]
 
+    def on_button_clicked(self, text):
+        self.on_enter_pressed()
 
     def update_font_size(self):
         # volume = self.player.audio_get_volume()
@@ -897,6 +924,12 @@ class MainWindow(QtWidgets.QWidget):
             if widget is not None:
                 widget.deleteLater()
 
+    def copy_calculation_to_clipboard(self, text):
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(text)
+        self.button.setText("Copied to Clipboard!")
+        QtCore.QTimer.singleShot(1000, lambda: self.button.setText(text))
+
     @QtCore.Slot()
     def on_text_changed(self, text):
         self.remove_buttons()
@@ -917,16 +950,18 @@ class MainWindow(QtWidgets.QWidget):
             new_text = f"={new_text.replace("inf", "Basically ∞").replace("nan", "Not a Number")}"
             self.button = QtWidgets.QPushButton(new_text, self)
             self.button.setStyleSheet("border: none; text-align: left;")
-            self.button.clicked.connect(lambda: QtWidgets.QApplication.clipboard().setText(new_text.strip("=")))
+            self.button.setToolTip("Click to copy to clipboard.")
+            self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(new_text.strip("=")))
             self.buttons_layout.addWidget(self.button)
         else:
             new_text = ""
             for i in range(len(narrowed_list)):
                 # new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
                 self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").replace(".kaboom", "").rsplit("\\")[-1], self)
-                self.button.setStyleSheet("border: none; text-align: left;")
+                self.button.setToolTip("Click to launch")
+                self.button.setStyleSheet(theme_toml["dark" if dark else "light"]["button_qss"])
+                self.button.clicked.connect(lambda checked=False, text=narrowed_list[i]: self.on_button_clicked(text))
                 self.buttons_layout.addWidget(self.button)
-        print(new_text)
 
 
     @QtCore.Slot()

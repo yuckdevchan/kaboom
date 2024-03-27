@@ -4,46 +4,60 @@ background = "#b5f4bb"
 foreground = "#000000"
 text = "#000000"
 icons = "#000000"
+button_qss = "border: none; text-align: left;"
 
 [red]
-dark = true
+dark = false    
 background = "#f4b5b5"
 foreground = "#000000"
 text = "#000000"
 icons = "#000000"
+button_qss = "border: none; text-align: left;"
 
 [blue]
+dark = false
 background = "#b5b5f4"
 foreground = "#000000"
 text = "#000000"
 icons = "#000000"
+button_qss = "border: none; text-align: left;"
 
 [orange]
+dark = false
 background = "#f4dcb5"
 foreground = "#000000"
 text = "#000000"
 icons = "#000000"
+button_qss = "border: none; text-align: left;"
 
 [yellow]
+dark = false
 background = "#f4f4b5"
 foreground = "#000000"
 text = "#000000"
 icons = "#000000"
+button_qss = "border: none; text-align: left;"
 
 [purple]
+dark = false
 background = "#e0b5f4"
 foreground = "#000000"
 text = "#000000"
 icons = "#000000"
+button_qss = "border: none; text-align: left;"
 
 [violet]
+dark = false
 background = "#f4b5f4"
 foreground = "#000000"
 text = "#000000"
 icons = "#000000"
+button_qss = "border: none; text-align: left;"
 
 [rose]
+dark = false
 background = "#f4b5e0"
 foreground = "#000000"
 text = "#000000"
 icons = "#000000"
+button_qss = "border: none; text-align: left;"

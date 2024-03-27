@@ -4,6 +4,7 @@ background = "white"
 foreground = "black"
 text = "black"
 icons = "black"
+button_qss = "border: none; text-align: left;"
 
 [dark]
 dark = true
@@ -11,3 +12,4 @@ background = "black"
 foreground = "white"
 text = "white"
 icons = "white"
+button_qss = "border: none; text-align: left;"

@@ -1,6 +1,6 @@
 [Settings]
 theme = "Discordia"
-theme_style = "dark"
+theme_style = "light"
 qt_style = "Fusion.qss"
 hotkey = "shift + left shift"
 bgm = true

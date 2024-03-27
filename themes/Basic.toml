@@ -4,7 +4,7 @@ background = "#f2f2f2"
 foreground = "#000000"
 text = "#000000"
 icons = "#000000"
-button_qss = "border: none; text-align: left;"
+button_qss = ""
 
 [dark]
 dark = true
@@ -12,4 +12,4 @@ background = "#27282a"
 foreground = "#ffffff"
 text = "#ffffff"
 icons = "#ffffff"
-button_qss = "border: none; text-align: left;"
+button_qss = ""
