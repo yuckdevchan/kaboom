@@ -1,9 +1,13 @@
 [light]
+dark = false
 background = "#F9F9F9"
 foreground = "#383A42"
 text = "#383A42"
+icons = "#383A42"
 
 [dark]
+dark = true
 background = "#1E2127"
 foreground = "#ABB2BF"
 text = "#ABB2BF"
+icons = "#ABB2BF"

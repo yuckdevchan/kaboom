@@ -1,0 +1,13 @@
+[light]
+dark = false
+background = "#fbf1c7"
+foreground = "#3c3836"
+text = "#3c3836"
+icons = "#3c3836"
+
+[dark]
+dark = true
+background = "#282828"
+foreground = "#ebdbb2"
+text = "#ebdbb2"
+icons = "#ebdbb2"

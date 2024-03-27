@@ -1,0 +1,27 @@
+[latte]
+dark = false
+background = "#eff1f5" # Base
+foreground = "#dce0e8" # Crust
+text = "#4c4f69" # Text
+icons = "#4c4f69" # Text
+
+[frappe]
+dark = true
+background = "#303446" # Base
+foreground = "#232634" # Crust
+text = "#c6d0f5" # Text
+icons = "#c6d0f5" # Text
+
+[macchiato]
+dark = true
+background = "#24273a" # Base
+foreground = "#181926" # Crust
+text = "#cad3f5"
+icons = "#cad3f5"
+
+[mocha]
+dark = true
+background = "#1e1e2e" # Base
+foreground = "#11111b" # Crust
+text = "#cdd6f4" # Text
+icons = "#cdd6f4" # Text

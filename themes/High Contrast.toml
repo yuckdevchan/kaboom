@@ -1,0 +1,13 @@
+[light]
+dark = false
+background = "white"
+foreground = "black"
+text = "black"
+icons = "black"
+
+[dark]
+dark = true
+background = "black"
+foreground = "white"
+text = "white"
+icons = "white"

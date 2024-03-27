@@ -215,7 +215,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.sixth_tab_layout = QtWidgets.QVBoxLayout(self.sixth_tab)
 
         self.kaboom_logo = QtWidgets.QLabel(self)
-        if config["Settings"]["dark_mode"]:
+        if dark:
             theme = "dark"
         else:
             theme = "light"
@@ -311,6 +311,10 @@ Qt Version: {PySide6.QtCore.__version__}
     def closeEvent(self, event):
         self.parent().search_bar.setFocus()
 
+    def showEvent(self, event):
+        with open('config.toml', 'r') as file:
+            config = toml.load(file)
+
     def change_theme(self, state):
         with open('config.toml', 'r+') as file:
             config = toml.load(file)
@@ -350,21 +354,21 @@ Qt Version: {PySide6.QtCore.__version__}
             toml.dump(config, file)
             file.truncate()
 
-    def change_to_dark_icons(self):
+    def change_to_dark_icons(self, fg_colour):
         self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
         self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
         self.parent().hide_button.setIcon(QIcon("images/hide-dark.svg"))
         self.parent().clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
         self.parent().search_bar.setStyleSheet("""
     QLineEdit {
-        border: 2px solid """ + config["Settings"]["dark_mode_text"] + """;
+        border: 2px solid """ + fg_colour + """;
         border-radius: 10px;
         padding: 0 8px;
         selection-background-color: darkgray;
     }
 """)
 
-    def change_to_light_icons(self):
+    def change_to_light_icons(self, fg_colour):
         self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
         self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
         self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
@@ -372,7 +376,7 @@ Qt Version: {PySide6.QtCore.__version__}
         # change search bar stylesheet
         self.parent().search_bar.setStyleSheet("""
     QLineEdit {
-        border: 2px solid """ + config["Settings"]["light_mode_text"] + """;
+        border: 2px solid """ + fg_colour + """;
         border-radius: 10px;
         padding: 0 8px;
         selection-background-color: darkgray;
@@ -385,12 +389,13 @@ Qt Version: {PySide6.QtCore.__version__}
             theme_style = self.theme_style.checkedButton().text().lower()
             bg_colour = theme[theme_style]["background"]
             text_colour = theme[theme_style]["text"]
+            dark = theme[theme_style]["dark"]
             self.setStyleSheet(f"background-color: {bg_colour}; color: {text_colour};")
             self.parent().setStyleSheet(f"background-color: {bg_colour}; color: {text_colour};")
-            if theme_style == "dark":
-                self.change_to_dark_icons()
+            if dark:
+                self.change_to_dark_icons(fg_colour=theme[theme_style]["foreground"])
             else:
-                self.change_to_light_icons()
+                self.change_to_light_icons(fg_colour=theme[theme_style]["foreground"])
 
     def change_theme_radio(self, checked):
         self.change_theme2(self.themes_combobox.currentText())
@@ -645,12 +650,15 @@ class MainWindow(QtWidgets.QWidget):
         super().__init__()
         with open('config.toml', 'r') as file:
             config = toml.load(file)
-            if config["Settings"]["dark_mode"]:
-                bg_color = config["Settings"]["dark_mode_bg"]
-                text_color = config["Settings"]["dark_mode_text"]
-            else:
-                bg_color = config["Settings"]["light_mode_bg"]
-                text_color = config["Settings"]["light_mode_text"]
+            with open(Path("themes", f"{config['Settings']['theme']}.toml"), "r") as theme_file:
+                theme = toml.load(theme_file)
+                theme_style = config["Settings"]["theme_style"].lower()
+                bg_color = theme[theme_style]["background"]
+                fg_color = theme[theme_style]["foreground"]
+                text_color = theme[theme_style]["text"]
+                icon_color = theme[theme_style]["icons"]
+                global dark
+                dark = theme[theme_style]["dark"]
             self.setStyleSheet(f"background-color: {bg_color}; color: {text_color};")
 
         if platform.system() == "Windows":
@@ -663,7 +671,7 @@ class MainWindow(QtWidgets.QWidget):
         self.search_bar.setPlaceholderText("Start typing to search...")
         self.search_bar.setStyleSheet("""
     QLineEdit {
-        border: 2px solid """ + text_color + """;
+        border: 2px solid """ + fg_color + """;
         border-radius: 10px;
         padding: 0 8px;
         selection-background-color: darkgray;
@@ -702,7 +710,7 @@ class MainWindow(QtWidgets.QWidget):
         self.hide_button.clicked.connect(self.toggle_window)
         self.exit_button.clicked.connect(sys.exit)
 
-        if config["Settings"]["dark_mode"]:
+        if dark:
             self.settings_button.setIcon(QIcon("images/settings-dark.svg"))
             self.exit_button.setIcon(QIcon("images/exit-dark.svg"))
             self.hide_button.setIcon(QIcon("images/hide-dark.svg"))
@@ -961,38 +969,13 @@ if platform.system() == "Linux":
 if __name__ == "__main__":
     with open('config.toml', 'r') as file:
         config = toml.load(file)
-        if config["Settings"]["dark_mode"]:
-            theme = "dark"
-        else:
-            theme = "light"
 
     if platform.system() == "Windows":
         windows_theme = get_windows_theme()
 
-    # if platform.system() == "Linux":
-    #     if os.geteuid() != 0:
-    #         print("Script not started as root. Running sudo..")
-    #         cwd = os.getcwd()
-    #         with tempfile.NamedTemporaryFile(delete=False) as tf:
-    #             tf.write(cwd.encode())
-    #         args = ['pkexec', sys.executable, os.path.abspath(sys.argv[0]), tf.name] + sys.argv[1:]
-    #         os.execvpe('pkexec', args, os.environ)
-    #     else:
-    #         with open(sys.argv[1], 'r') as tf:
-    #             cwd = tf.read().strip()
-    #         print("cwd: " + cwd)
-    #         os.chdir(cwd)
-    #         os.unlink(sys.argv[1])
-    #         from utils import list_programs, narrow_down, determine_program, load_themes
-    # if platform.system() == "Darwin":
-    #     if os.geteuid() != 0:
-    #         print("Script not started as root. Running sudo..")
-    #         args = [sys.executable] + sys.argv
-    #         os.execlp('osascript', 'osascript', '-e', 'do shell script "{}" with administrator privileges'.format(' '.join(args)))
-
     app = QApplication([])
     app.setStyle("macos" if platform.system() == "Darwin" else "Fusion")
-    app.setWindowIcon(QIcon(str(Path("images", f"logo-{theme}.svg"))))
+    app.setWindowIcon(QIcon(str(Path("images", f"logo-light.svg"))))
 
     if platform.system() == "Linux":
         timer = QTimer()

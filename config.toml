@@ -1,19 +1,11 @@
 [Settings]
-dark_mode = false
-theme = "kaboom"
-theme_style = "light"
-colour_overlay_mode = false
-dark_mode_bg = "#27282a"
-dark_mode_text = "#FFFFFF"
-light_mode_bg = "#f2f2f2"
-light_mode_text = "#000000"
-colour_overlay_bg = "#b5f4bb"
-colour_overlay_text = "#000000"
+theme = "Discordia"
+theme_style = "dark"
 qt_style = "Fusion.qss"
 hotkey = "shift + left shift"
-bgm = false
+bgm = true
 bgm_file = "griddy.wav"
-bgm_volume = 0.5
+bgm_volume = 0.0
 auto_pause_bgm = true
 font_family = "Segoe UI"
 font_size = 12

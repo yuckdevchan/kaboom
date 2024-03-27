@@ -1,0 +1,49 @@
+[green]
+dark = false
+background = "#b5f4bb"
+foreground = "#000000"
+text = "#000000"
+icons = "#000000"
+
+[red]
+dark = true
+background = "#f4b5b5"
+foreground = "#000000"
+text = "#000000"
+icons = "#000000"
+
+[blue]
+background = "#b5b5f4"
+foreground = "#000000"
+text = "#000000"
+icons = "#000000"
+
+[orange]
+background = "#f4dcb5"
+foreground = "#000000"
+text = "#000000"
+icons = "#000000"
+
+[yellow]
+background = "#f4f4b5"
+foreground = "#000000"
+text = "#000000"
+icons = "#000000"
+
+[purple]
+background = "#e0b5f4"
+foreground = "#000000"
+text = "#000000"
+icons = "#000000"
+
+[violet]
+background = "#f4b5f4"
+foreground = "#000000"
+text = "#000000"
+icons = "#000000"
+
+[rose]
+background = "#f4b5e0"
+foreground = "#000000"
+text = "#000000"
+icons = "#000000"
