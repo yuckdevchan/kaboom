@@ -60,9 +60,9 @@ class SettingsPopup2(QtWidgets.QDialog):
                 self.theme_style_radio = QtWidgets.QRadioButton(theme_styles[i].title(), self)
                 self.theme_style.addButton(self.theme_style_radio)
                 self.first_tab_layout.addWidget(self.theme_style_radio)
-        # set button group's current button
         self.theme_style_radio = self.theme_style.buttons()[theme_styles.index(config["Settings"]["theme_style"].lower())]
-        self.theme_style.buttonClicked.connect(self.change_theme2)
+        self.theme_style_radio.setChecked(True)
+        self.theme_style.buttonClicked.connect(self.change_theme_radio)
 
         self.qt_style_label = QtWidgets.QLabel("Qt Style", self)
         self.qt_style_label.setStyleSheet("font-weight: bold;")
@@ -350,6 +350,35 @@ Qt Version: {PySide6.QtCore.__version__}
             toml.dump(config, file)
             file.truncate()
 
+    def change_to_dark_icons(self):
+        self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
+        self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
+        self.parent().hide_button.setIcon(QIcon("images/hide-dark.svg"))
+        self.parent().clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
+        self.parent().search_bar.setStyleSheet("""
+    QLineEdit {
+        border: 2px solid """ + config["Settings"]["dark_mode_text"] + """;
+        border-radius: 10px;
+        padding: 0 8px;
+        selection-background-color: darkgray;
+    }
+""")
+
+    def change_to_light_icons(self):
+        self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
+        self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
+        self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
+        self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
+        # change search bar stylesheet
+        self.parent().search_bar.setStyleSheet("""
+    QLineEdit {
+        border: 2px solid """ + config["Settings"]["light_mode_text"] + """;
+        border-radius: 10px;
+        padding: 0 8px;
+        selection-background-color: darkgray;
+    }
+""")
+
     def change_theme2(self, state):
         with open(Path("themes", f"{state}.toml"), "r") as file:
             theme = toml.load(file)
@@ -358,10 +387,13 @@ Qt Version: {PySide6.QtCore.__version__}
             text_colour = theme[theme_style]["text"]
             self.setStyleSheet(f"background-color: {bg_colour}; color: {text_colour};")
             self.parent().setStyleSheet(f"background-color: {bg_colour}; color: {text_colour};")
-            self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
-            self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
-            self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
-            self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
+            if theme_style == "dark":
+                self.change_to_dark_icons()
+            else:
+                self.change_to_light_icons()
+
+    def change_theme_radio(self, checked):
+        self.change_theme2(self.themes_combobox.currentText())
 
     def change_colour_overlay(self, state):
         with open('config.toml', 'r+') as file:
@@ -884,9 +916,10 @@ class MainWindow(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def on_enter_pressed(self):
+        print(self.buttons_layout.count())
         if self.search_bar.text() == "exit":
             sys.exit()
-        elif self.label.text() == config["Settings"]["no_results_text"] + "\n":
+        elif self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == config["Settings"]["no_results_text"]:
             self.search_bar.clear()
         else:
             determine_program(self.search_bar.text())
@@ -1013,8 +1046,4 @@ if __name__ == "__main__":
         import vlc
         QtCore.QTimer.singleShot(0, widget.play_audio)
 
-    label = QLabel("Volume")
-    timer = QTimer()
-    timer.timeout.connect(widget.update_font_size)
-    timer.start(100)
     sys.exit(app.exec())

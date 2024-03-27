@@ -2,8 +2,10 @@
 dark = false
 background = "#f2f2f2"
 foreground = "#000000"
+text = "#000000"
 
 [dark]
 dark = true
 background = "#27282a"
 foreground = "#ffffff"
+text = "#ffffff"

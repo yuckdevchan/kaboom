@@ -1,7 +1,9 @@
 [light]
-background = "#000000"
+background = "#F9F9F9"
 foreground = "#383A42"
+text = "#383A42"
 
 [dark]
 background = "#1E2127"
 foreground = "#ABB2BF"
+text = "#ABB2BF"

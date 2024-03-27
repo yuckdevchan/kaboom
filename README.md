@@ -17,6 +17,13 @@ Open kaboom, press `Alt+F3` and open `More Actions > Special Window Settings` wh
 - `Focus Protection`, `Force`, `Extreme`
     - Further protects window focus for kaboom.
 
+### MacOS
+To have the keyboard shortcut working on MacOS you must register a keyboard shortcut in Automator that runs your python executable (python3) and the path to the file 'toggle_window.py' which is located in your kaboom installation directory. For example this command might look like this:
+
+```shell
+python3 "/Users/john/Documents/kaboom/toggle_window.py"
+```
+
 ## Supported Functionality
 - **Windows Start Menu Shortcuts** (bit broken but mostly works)
     - Just type the program you want and hitting enter will launch the first one.
@@ -25,10 +32,11 @@ Open kaboom, press `Alt+F3` and open `More Actions > Special Window Settings` wh
     - more complex calculations work as well e.g `sqrt(25)*2` or `2e+3 * pi`
     - multiply = *
     - divide = /
+    - brackets = ()
     - to power of = **
     - square root = sqrt()
     - π = pi
-    - sohcahtoa = sin(), cos(), tan()
+    - sin, cos, tan = sin(), cos(), tan()
     - e = e
 - **Steam Games**
     - type `steam:` and your list of games should appear. Then type the game you want to launch.
