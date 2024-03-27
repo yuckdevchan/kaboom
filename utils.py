@@ -214,6 +214,8 @@ def run_shortcut(shortcut: str):
                 webbrowser.open(command)
         except KeyError:
             print(f"No 'Exec' key found in {shortcut}")
+    elif platform.system() == "Darwin":
+        subprocess.Popen(["open", shortcut])
 
 
 def determine_program(string):
@@ -237,6 +239,8 @@ def determine_program(string):
                 shortcut_path = Path('/usr/share/applications') / narrowed_list[0]
                 if not shortcut_path.exists():
                     shortcut_path = Path(f'/home/{current_user()}/.local/share/applications') / narrowed_list[0]
+            elif platform.system() == "Darwin":
+                shortcut_path = Path('/Applications') / narrowed_list[0]
             run_shortcut(str(shortcut_path))
 
 def load_themes():
