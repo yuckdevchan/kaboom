@@ -309,7 +309,7 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.parent().player.play()
 
     def closeEvent(self, event):
-        self.parent().textbox.setFocus()
+        self.parent().search_bar.setFocus()
 
     def change_theme(self, state):
         with open('config.toml', 'r+') as file:
@@ -322,7 +322,7 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
                 self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
                 self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
-                self.parent().textbox.setStyleSheet("""
+                self.parent().search_bar.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + config["Settings"]["light_mode_text"] + """;
         border-radius: 10px;
@@ -338,7 +338,7 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
                 self.parent().clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
                 self.parent().hide_button.setIcon(QIcon("images/hide-dark.svg"))
-                self.parent().textbox.setStyleSheet("""
+                self.parent().search_bar.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + config["Settings"]["dark_mode_text"] + """;
         border-radius: 10px;
@@ -691,6 +691,30 @@ class MainWindow(QtWidgets.QWidget):
         self.buttons_widget = QtWidgets.QWidget()
         self.buttons_widget.setLayout(self.buttons_layout)
         self.scroll_area = QtWidgets.QScrollArea()
+        self.scroll_area.setStyleSheet("""
+    QScrollBar:vertical {
+        border: none;
+        background: lightgrey;
+        width: 12px;
+        margin: 15px 0 15px 0;
+        border-radius: 6px;
+     }
+     QScrollBar::handle:vertical {   
+        background: grey;
+        min-height: 30px;
+        border-radius: 6px;
+     }
+     QScrollBar::add-line:vertical {
+        border: none;
+        background: none;
+        height: 0px;
+     }
+     QScrollBar::sub-line:vertical {
+        border: none;
+        background: none;
+        height: 0px;
+     }
+""")
         self.scroll_area.setWidget(self.buttons_widget)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
@@ -707,11 +731,12 @@ class MainWindow(QtWidgets.QWidget):
         self.settings_button.clicked.connect(self.open_settings)
 
         program_list = list_programs()
+        program_list = sorted([program.rsplit("\\")[-1] for program in program_list])
         text = ""
         for i in range(len(program_list)):
             # text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
             # add button
-            self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1], self)
+            self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", ""), self)
             self.buttons_layout.addWidget(self.button)
             self.button.setStyleSheet("border: solid; text-align: left;")
         # self.change_text(text)
@@ -811,7 +836,7 @@ class MainWindow(QtWidgets.QWidget):
         return mask
 
     def remove_buttons(self):
-        for i in reversed(range(self.layout.count())):
+        for i in reversed(range(self.buttons_layout.count())):
             widget = self.buttons_layout.itemAt(i).widget()
             if widget is not None:
                 widget.deleteLater()

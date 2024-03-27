@@ -62,7 +62,8 @@ def list_programs() -> list:
         for directory in macos_directories:
             for file in os.listdir(directory):
                 program_list.append(file)
-    return ["dillon", "foo", "bar", "freddie", "reeves"]
+    program_list = sorted(program_list)
+    return program_list
 
 def list_steam_games(search_text):
     steam_path = config["Settings"]["steam_path"].replace("<CURRENT_USER>", current_user())
