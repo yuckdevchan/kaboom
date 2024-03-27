@@ -25,6 +25,7 @@ always_on_top = true
 draggable_window = true
 width = 600
 height = 250
+search_bar_location = "top"
 sidebar_mode = false
 program_title = "kaboom"
 program_version = "testing"

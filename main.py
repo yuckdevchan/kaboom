@@ -627,9 +627,9 @@ class MainWindow(QtWidgets.QWidget):
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.textbox_layout = QtWidgets.QHBoxLayout()
-        self.textbox = QtWidgets.QLineEdit(self)
-        self.textbox.setPlaceholderText("Start typing to search...")
-        self.textbox.setStyleSheet("""
+        self.search_bar = QtWidgets.QLineEdit(self)
+        self.search_bar.setPlaceholderText("Start typing to search...")
+        self.search_bar.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + text_color + """;
         border-radius: 10px;
@@ -665,8 +665,8 @@ class MainWindow(QtWidgets.QWidget):
         self.clear_text_button.setToolTip("Clear Text Field")
         self.clear_text_button.setFlat(True)
         self.clear_text_button.setStyleSheet(self.button_style)
-        self.clear_text_button.clicked.connect(self.textbox.clear)
-        self.clear_text_button.clicked.connect(self.textbox.setFocus)
+        self.clear_text_button.clicked.connect(self.search_bar.clear)
+        self.clear_text_button.clicked.connect(self.search_bar.setFocus)
         self.hide_button.clicked.connect(self.toggle_window)
         self.exit_button.clicked.connect(sys.exit)
 
@@ -681,34 +681,38 @@ class MainWindow(QtWidgets.QWidget):
             self.hide_button.setIcon(QIcon("images/hide-light.svg"))
             self.clear_text_button.setIcon(QIcon("images/clear-light.svg"))
 
-        self.scroll_area = QtWidgets.QScrollArea(self)
-        self.scroll_area.setFrameShape(QtWidgets.QScrollArea.NoFrame)
-        self.label = QtWidgets.QLabel(self)
-        self.label.setStyleSheet(f"font-size: {config['Settings']['font_size']}px;")
-        self.scroll_area.setWidget(self.label)
-        self.scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        
-        self.textbox_layout.addWidget(self.textbox)
+        self.textbox_layout.addWidget(self.search_bar)
         self.textbox_layout.addWidget(self.clear_text_button)
         self.textbox_layout.addWidget(self.exit_button)
         self.textbox_layout.addWidget(self.hide_button)
         self.textbox_layout.addWidget(self.settings_button)
-        
-        self.layout.addLayout(self.textbox_layout)
-        self.layout.addWidget(self.scroll_area)
-        
-        self.textbox.textChanged.connect(self.on_text_changed)
-        self.textbox.returnPressed.connect(self.on_enter_pressed)
+
+        self.buttons_layout = QtWidgets.QVBoxLayout()
+        self.buttons_widget = QtWidgets.QWidget()
+        self.buttons_widget.setLayout(self.buttons_layout)
+        self.scroll_area = QtWidgets.QScrollArea()
+        self.scroll_area.setWidget(self.buttons_widget)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+
+        if config["Settings"]["search_bar_location"] == "bottom":
+            self.layout.addLayout(self.textbox_layout)
+            self.layout.addWidget(self.scroll_area)
+        else:
+            self.layout.addLayout(self.textbox_layout)
+            self.layout.addWidget(self.scroll_area)
+
+        self.search_bar.textChanged.connect(self.on_text_changed)
+        self.search_bar.returnPressed.connect(self.on_enter_pressed)
         self.settings_button.clicked.connect(self.open_settings)
-        
+
         program_list = list_programs()
         text = ""
         for i in range(len(program_list)):
             # text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
             # add button
             self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1], self)
-            self.layout.addWidget(self.button)
+            self.buttons_layout.addWidget(self.button)
             self.button.setStyleSheet("border: solid; text-align: left;")
         # self.change_text(text)
 
@@ -761,7 +765,7 @@ class MainWindow(QtWidgets.QWidget):
             self.show()
             widget.activateWindow()
             widget.raise_()
-            self.textbox.setFocus()
+            self.search_bar.setFocus()
             if platform.system() == "Windows":
                 self.tabtip_process = subprocess.Popen("C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe", shell=True)
 
@@ -806,41 +810,43 @@ class MainWindow(QtWidgets.QWidget):
 
         return mask
 
+    def remove_buttons(self):
+        for i in reversed(range(self.layout.count())):
+            widget = self.buttons_layout.itemAt(i).widget()
+            if widget is not None:
+                widget.deleteLater()
+
     @QtCore.Slot()
     def on_text_changed(self, text):
-        if text.lower() == "exit":
-            self.change_text("Press Enter to Exit.")
+        self.remove_buttons()
+        narrowed_list = narrow_down(text)
+        if is_calculation(self.search_bar.text()):
+            new_text = narrowed_list[0]
+            if ("life" in self.search_bar.text() or "universe" in self.search_bar.text() or "everything" in self.search_bar.text()) and ("*" in self.search_bar.text() or "+" in self.search_bar.text() or "-" in self.search_bar.text() or "/" in self.search_bar.text()):
+                # self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 4}px;")
+                new_text = "42"
+            elif new_text.replace("\n", "") == "666":
+                new_text = "The Number of the Beast"
+            elif new_text.replace("\n", "") == "668" or new_text.replace("\n", "") == "664":
+                new_text = "The Neighbour of the Beast"
+            elif new_text.startswith("Error:"):
+                new_text = new_text.replace("(<String>, Line 1)", "")
+            elif new_text.startswith("3.14159"):
+                new_text = "◯"
+            new_text = f"={new_text.replace("inf", "Basically ∞").replace("nan", "Not a Number")}"
+            self.button = QtWidgets.QPushButton(new_text, self)
+            self.button.setStyleSheet("border: none; text-align: left;")
+            self.button.clicked.connect(lambda: QtWidgets.QApplication.clipboard().setText(new_text.strip("=")))
+            self.buttons_layout.addWidget(self.button)
         else:
-            narrowed_list = narrow_down(text)
             new_text = ""
-            # remove all buttons
-            self.layout.removeWidget(self.button)
             for i in range(len(narrowed_list)):
                 # new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
                 self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1], self)
-            if is_calculation(self.textbox.text()):
-                if new_text.replace("\n", "") == "666":
-                    new_text = "The Number of the Beast"
-                    self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 2}px;")
-                elif new_text.replace("\n", "") == "668" or new_text.replace("\n", "") == "664":
-                    new_text = "The Neighbour of the Beast"
-                    self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 2}px;")
-                elif new_text.startswith("Error:"):
-                    new_text = new_text.replace("(<String>, Line 1)", "")
-                    self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 2}px;")
-                elif new_text.startswith("3.14159"):
-                    self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 4}px;")
-                    new_text = "◯\n"
-                else:
-                    self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 4}px;")
-                new_text = "=" + new_text.replace("inf", "Basically ∞").replace("nan", "Not a Number")
-            else:
-                self.label.setStyleSheet(f"font-size: {config['Settings']['font_size']}px;")
-            if ("life" in self.textbox.text() or "universe" in self.textbox.text() or "everything" in self.textbox.text()) and ("*" in self.textbox.text() or "+" in self.textbox.text() or "-" in self.textbox.text() or "/" in self.textbox.text()):
-                self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 4}px;")
-                new_text = "=42"
-            if new_text.startswith("Error:"):
-                self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 2}px;")
+                self.button.setStyleSheet("border: none; text-align: left;")
+                self.buttons_layout.addWidget(self.button)
+        print(new_text)
+
 
     @QtCore.Slot()
     def change_text(self, text):
@@ -853,13 +859,13 @@ class MainWindow(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def on_enter_pressed(self):
-        if self.textbox.text() == "exit":
+        if self.search_bar.text() == "exit":
             sys.exit()
         elif self.label.text() == config["Settings"]["no_results_text"] + "\n":
-            self.textbox.clear()
+            self.search_bar.clear()
         else:
-            determine_program(self.textbox.text())
-            self.textbox.clear()
+            determine_program(self.search_bar.text())
+            self.search_bar.clear()
             self.toggle_window()
 
 if platform.system() == "Linux":
@@ -881,7 +887,7 @@ if platform.system() == "Linux":
             widget.show()
             widget.activateWindow()
             widget.raise_()
-            widget.textbox.setFocus()
+            widget.search_bar.setFocus()
 
     def check_file():
         filename = "toggle_window_socket"
