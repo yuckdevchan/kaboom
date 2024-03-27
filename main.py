@@ -386,7 +386,21 @@ Qt Version: {PySide6.QtCore.__version__}
     def change_theme2(self, state):
         with open(Path("themes", f"{state}.toml"), "r") as file:
             theme = toml.load(file)
-            theme_style = self.theme_style.checkedButton().text().lower()
+            # if theme styles are different then change the theme style to the first one
+            if self.theme_style.checkedButton().text().lower() not in theme.keys():
+                theme_style = list(theme.keys())[0]
+                self.theme_style_radio = self.theme_style.buttons()[list(theme.keys()).index(theme_style)]
+                self.theme_style_radio.setChecked(True)
+                # remove all current radio buttons from the group without index out of range error
+                for i in range(len(theme.keys())):
+                    self.theme_style.removeButton(self.theme_style.buttons()[0])
+                # add radio buttons
+                for i in range(len(theme.keys())):
+                    self.theme_style_radio = QtWidgets.QRadioButton(list(theme.keys())[i].title(), self)
+                    self.theme_style.addButton(self.theme_style_radio)
+                    self.first_tab_layout.addWidget(self.theme_style_radio)
+            else:
+                theme_style = self.theme_style.checkedButton().text().lower()
             bg_colour = theme[theme_style]["background"]
             text_colour = theme[theme_style]["text"]
             dark = theme[theme_style]["dark"]
@@ -776,7 +790,7 @@ class MainWindow(QtWidgets.QWidget):
         for i in range(len(program_list)):
             # text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
             # add button
-            self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", ""), self)
+            self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".kaboom", ""), self)
             self.buttons_layout.addWidget(self.button)
             self.button.setStyleSheet("border: solid; text-align: left;")
         # self.change_text(text)
@@ -909,7 +923,7 @@ class MainWindow(QtWidgets.QWidget):
             new_text = ""
             for i in range(len(narrowed_list)):
                 # new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
-                self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1], self)
+                self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").replace(".kaboom", "").rsplit("\\")[-1], self)
                 self.button.setStyleSheet("border: none; text-align: left;")
                 self.buttons_layout.addWidget(self.button)
         print(new_text)
@@ -926,11 +940,20 @@ class MainWindow(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def on_enter_pressed(self):
-        print(self.buttons_layout.count())
+        program = narrow_down(self.search_bar.text())[0]
         if self.search_bar.text() == "exit":
             sys.exit()
         elif self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == config["Settings"]["no_results_text"]:
             self.search_bar.clear()
+        elif program.endswith(".kaboom"):
+            if program == "Open kaboom Settings.kaboom":
+                self.search_bar.clear()
+                self.open_settings()
+            elif program == "Reset kaboom Settings.kaboom":
+                self.search_bar.clear()
+                self.reset_settings_confirmation()
+            elif program == "Exit kaboom.kaboom":
+                sys.exit()
         else:
             determine_program(self.search_bar.text())
             self.search_bar.clear()

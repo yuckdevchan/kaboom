@@ -62,6 +62,12 @@ def list_programs() -> list:
         for directory in macos_directories:
             for file in os.listdir(directory):
                 program_list.append(file)
+    kaboom_programs = [
+        f"Open {config['Settings']['program_title']} Settings.kaboom", 
+        f"Reset {config['Settings']['program_title']} Settings.kaboom",
+        f"Exit {config['Settings']['program_title']}.kaboom",
+    ]
+    program_list += kaboom_programs
     program_list = sorted(program_list)
     return program_list
 
