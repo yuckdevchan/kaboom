@@ -824,12 +824,14 @@ class MainWindow(QtWidgets.QWidget):
             config = toml.load(file)
         if config["Settings"]["auto_pause_bgm"] and config["Settings"]["bgm"]:
             self.player.pause()
-        if self.isVisible():
+        # if minimized
+        if not self.windowState() == QtCore.Qt.WindowMinimized:
             self.hide()
+            self.setWindowState(QtCore.Qt.WindowMinimized)
         else:
+            self.setWindowState(QtCore.Qt.WindowNoState)
             self.show()
             widget.activateWindow()
-            widget.raise_()
             self.search_bar.setFocus()
             if platform.system() == "Windows":
                 self.tabtip_process = subprocess.Popen("C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe", shell=True)
@@ -937,7 +939,7 @@ class MainWindow(QtWidgets.QWidget):
 if platform.system() == "Linux":
     def read_value_from_file(filename):
         with open(filename, 'r') as file:
-            data = file.read().strip()  # Remove any leading/trailing whitespace
+            data = file.read().strip()
         return data
 
     def execute_code(filename):
