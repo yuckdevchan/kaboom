@@ -813,7 +813,7 @@ class MainWindow(QtWidgets.QWidget):
         for i in range(len(program_list)):
             # text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
             # add button
-            self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".kaboom", ""), self)
+            self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", ""), self)
             self.button.setToolTip("Click to launch")
             self.button.setStyleSheet(theme_toml[theme_style]["button_qss"])
             self.button.clicked.connect(lambda checked=False, text=program_list[i]: self.on_button_clicked(text))
@@ -957,7 +957,7 @@ class MainWindow(QtWidgets.QWidget):
             new_text = ""
             for i in range(len(narrowed_list)):
                 # new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
-                self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").replace(".kaboom", "").rsplit("\\")[-1], self)
+                self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", "").rsplit("\\")[-1], self)
                 self.button.setToolTip("Click to launch")
                 self.button.setStyleSheet(theme_toml["dark" if dark else "light"]["button_qss"])
                 self.button.clicked.connect(lambda checked=False, text=narrowed_list[i]: self.on_button_clicked(text))

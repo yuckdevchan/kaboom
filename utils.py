@@ -61,6 +61,8 @@ def list_programs() -> list:
         program_list = []
         for directory in macos_directories:
             for file in os.listdir(directory):
+                if file.endswith(".app"):
+                    program_list.append(file)
                 program_list.append(file)
     kaboom_programs = [
         f"Open {config['Settings']['program_title']} Settings.kaboom", 
