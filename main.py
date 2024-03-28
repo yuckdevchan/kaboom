@@ -947,7 +947,7 @@ class MainWindow(QtWidgets.QWidget):
                 new_text = new_text.replace("(<String>, Line 1)", "")
             elif new_text.startswith("3.14159"):
                 new_text = "◯"
-            new_text = f"={new_text.replace("inf", "Basically ∞").replace("nan", "Not a Number")}"
+            new_text = f'={new_text.replace("inf", "Basically ∞").replace("nan", "Not a Number")}'
             self.button = QtWidgets.QPushButton(new_text, self)
             self.button.setStyleSheet("border: none; text-align: left;")
             self.button.setToolTip("Click to copy to clipboard.")
