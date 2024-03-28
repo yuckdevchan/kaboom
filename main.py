@@ -28,9 +28,11 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.fourth_tab = QtWidgets.QWidget(self)
         self.fifth_tab = QtWidgets.QWidget(self)
         self.sixth_tab = QtWidgets.QWidget(self)
+        self.seventh_tab = QtWidgets.QWidget(self)
         self.tab_widget.addTab(self.first_tab, "&Appearance")
         self.tab_widget.addTab(self.second_tab, "&Compositing")
         self.tab_widget.addTab(self.third_tab, "&Search")
+        self.tab_widget.addTab(self.seventh_tab, "S&tartup")
         self.tab_widget.addTab(self.fifth_tab, "&Music")
         self.tab_widget.addTab(self.fourth_tab, "Config &File")
         self.tab_widget.addTab(self.sixth_tab, "A&bout")
@@ -38,6 +40,18 @@ class SettingsPopup2(QtWidgets.QDialog):
         # First tab
         self.first_tab_layout = QtWidgets.QVBoxLayout(self.first_tab)
         
+        self.qt_style_label = QtWidgets.QLabel("Qt Style", self)
+        self.qt_style_label.setStyleSheet("font-weight: bold;")
+        self.first_tab_layout.addWidget(self.qt_style_label)
+
+        self.qt_style_combobox = QtWidgets.QComboBox(self)
+        qt_styles = load_qt_styles()
+        qt_styles_without_file_extension = [qt_style.replace(".qss", "") for qt_style in qt_styles]
+        self.qt_style_combobox.addItems(QStyleFactory.keys() + qt_styles_without_file_extension)
+        self.qt_style_combobox.setCurrentText(config["Settings"]["qt_style"].replace(".qss", ""))
+        self.qt_style_combobox.currentTextChanged.connect(self.change_qt_style)
+        self.first_tab_layout.addWidget(self.qt_style_combobox)
+
         self.theme_label = QtWidgets.QLabel("Colour Theme", self)
         self.theme_label.setStyleSheet("font-weight: bold;")
         self.first_tab_layout.addWidget(self.theme_label)
@@ -65,18 +79,6 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.theme_style_radio = self.theme_style.buttons()[theme_styles.index(config["Settings"]["theme_style"].lower())]
         self.theme_style_radio.setChecked(True)
         self.theme_style.buttonClicked.connect(self.change_theme_radio)
-
-        self.qt_style_label = QtWidgets.QLabel("Qt Style", self)
-        self.qt_style_label.setStyleSheet("font-weight: bold;")
-        self.first_tab_layout.addWidget(self.qt_style_label)
-
-        self.qt_style_combobox = QtWidgets.QComboBox(self)
-        qt_styles = load_qt_styles()
-        qt_styles_without_file_extension = [qt_style.replace(".qss", "") for qt_style in qt_styles]
-        self.qt_style_combobox.addItems(QStyleFactory.keys() + qt_styles_without_file_extension)
-        self.qt_style_combobox.setCurrentText(config["Settings"]["qt_style"].replace(".qss", ""))
-        self.qt_style_combobox.currentTextChanged.connect(self.change_qt_style)
-        self.first_tab_layout.addWidget(self.qt_style_combobox)
 
         # Second tab
         self.second_tab_layout = QtWidgets.QGridLayout(self.second_tab)
@@ -249,6 +251,19 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.your_pc_info_title = QtWidgets.QLabel("Your PC Info:", self)
         self.your_pc_info_title.setStyleSheet("font-weight: bold;")
         self.sixth_tab_layout.addWidget(self.your_pc_info_title)
+
+        # seventh tab
+        self.seventh_tab_layout = QtWidgets.QVBoxLayout(self.seventh_tab)
+        
+        self.open_on_startup_switch = QtWidgets.QCheckBox("Open on Startup", self)
+        self.open_on_startup_switch.setChecked(config["Settings"]["open_on_startup"])
+        self.open_on_startup_switch.stateChanged.connect(self.change_open_on_startup)
+        self.seventh_tab_layout.addWidget(self.open_on_startup_switch)
+
+        self.open_in_background_switch = QtWidgets.QCheckBox("Open in background", self)
+        self.open_in_background_switch.setChecked(config["Settings"]["open_in_background"])
+        self.open_in_background_switch.stateChanged.connect(self.change_open_in_background)
+        self.seventh_tab_layout.addWidget(self.open_in_background_switch)
 
         if platform.system() == "Windows":
             manufacturer_and_model = f"{wmi.WMI().Win32_ComputerSystem()[0].Manufacturer} - {wmi.WMI().Win32_ComputerSystem()[0].Model}"
@@ -692,6 +707,30 @@ Qt Version: {PySide6.QtCore.__version__}
             toml.dump(config, file)
             file.truncate()
 
+    def change_open_on_startup(self, state):
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                config['Settings']['open_on_startup'] = False
+                os.system("schtasks /delete /tn Kaboom /f")
+            elif state == 2:
+                config['Settings']['open_on_startup'] = True
+                os.system(f"schtasks /create /tn Kaboom /tr {os.path.abspath('main.py')} /sc onlogon /rl highest")
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
+    def change_open_in_background(self, state):
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                config['Settings']['open_in_background'] = False
+            elif state == 2:
+                config['Settings']['open_in_background'] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
     def reset_settings_confirmation(self):
         # confirmation popup
         reset_popup = QtWidgets.QMessageBox(self)
@@ -951,12 +990,12 @@ class MainWindow(QtWidgets.QWidget):
                 for i in range(round(config["Settings"]["opacity"] * 100), 0, -5):
                     self.setWindowOpacity(i / 100)
                     time.sleep(0.005)
-            if not config["Settings"]["hide_from_taskbar"]:
+            if config["Settings"]["hide_from_taskbar"]:
                 self.hide()
             self.setWindowState(QtCore.Qt.WindowMinimized)
         else:
             self.setWindowState(QtCore.Qt.WindowNoState)
-            if not config["Settings"]["hide_from_taskbar"]:
+            if config["Settings"]["hide_from_taskbar"]:
                 self.show()
             if window_animation == "Fade":
                 for i in range(0, round(config["Settings"]["opacity"] * 100), 5):
@@ -1175,7 +1214,7 @@ if __name__ == "__main__":
         widget.setFixedHeight(QtWidgets.QApplication.primaryScreen().size().height())
     else:
         widget.move((QtWidgets.QApplication.primaryScreen().size().width() - widget.width()) / 2, (QtWidgets.QApplication.primaryScreen().size().height() - widget.height()) / 2)
-
+    
     widget.show()
     if config["Settings"]["window_animation"] == "Fade":
         widget.setWindowOpacity(0)
@@ -1183,7 +1222,11 @@ if __name__ == "__main__":
             widget.setWindowOpacity(i / 100)
             time.sleep(0.005)
         widget.setWindowOpacity(config["Settings"]["opacity"])
-
+    if config["Settings"]["hide_from_taskbar"]:
+        widget.toggle_window()
+        widget.toggle_window()
+    if config["Settings"]["open_in_background"]:
+        widget.toggle_window()
     if config["Settings"]["bgm"]:
         import vlc
         QtCore.QTimer.singleShot(0, widget.play_audio)

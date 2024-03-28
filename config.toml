@@ -1,6 +1,6 @@
 [Settings]
 theme = "kaboom"
-theme_style = "light"
+theme_style = "dark"
 qt_style = "Fusion.qss"
 hotkey = "shift + left shift"
 bgm = false
@@ -16,10 +16,12 @@ rounded_corners = true
 always_on_top = true
 draggable_window = true
 hide_from_taskbar = true
-window_animation = "Fade"
+window_animation = "None"
 window_animation_speed = 0.005
 width = 600
 height = 250
+open_on_startup = false
+open_in_background = true
 search_bar_location = "top"
 sidebar_mode = false
 program_title = "kaboom"
