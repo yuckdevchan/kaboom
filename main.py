@@ -1,4 +1,4 @@
-import sys, toml, os, platform, subprocess, signal, psutil, PySide6
+import sys, toml, os, platform, subprocess, signal, psutil, PySide6, time
 from PySide6.QtWidgets import QLabel, QGraphicsDropShadowEffect, QStyle, QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QWidget, QSizePolicy
 from PySide6.QtCore import Qt, Slot, QTimer, QUrl
 from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont
@@ -91,6 +91,16 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.opacity_slider.valueChanged.connect(self.change_opacity)
         self.second_tab_layout.addWidget(self.opacity_slider)
 
+        self.window_animation_label = QtWidgets.QLabel("Window Animation", self)
+        self.window_animation_label.setStyleSheet("font-weight: bold;")
+        self.second_tab_layout.addWidget(self.window_animation_label)
+
+        self.window_animation_combobox = QtWidgets.QComboBox(self)
+        self.window_animation_combobox.addItems(["None", "Fade"])
+        self.window_animation_combobox.setCurrentText(config["Settings"]["window_animation"])
+        self.window_animation_combobox.currentTextChanged.connect(self.change_window_animation)
+        self.second_tab_layout.addWidget(self.window_animation_combobox)
+
         self.draggable_window_switch = QtWidgets.QCheckBox("Draggable Window", self)
         self.draggable_window_switch.setChecked(config["Settings"]["draggable_window"])
         self.draggable_window_switch.stateChanged.connect(self.change_draggable_window)
@@ -110,6 +120,11 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.always_on_top_switch.setChecked(config["Settings"]["always_on_top"])
         self.always_on_top_switch.stateChanged.connect(self.change_always_on_top)
         self.second_tab_layout.addWidget(self.always_on_top_switch)
+
+        self.hide_from_taskbar_switch = QtWidgets.QCheckBox("Hide from Taskbar", self)
+        self.hide_from_taskbar_switch.setChecked(config["Settings"]["hide_from_taskbar"])
+        self.hide_from_taskbar_switch.stateChanged.connect(self.change_hide_from_taskbar)
+        self.second_tab_layout.addWidget(self.hide_from_taskbar_switch)
 
         self.translucent_background_switch = QtWidgets.QCheckBox("Translucent Background (Requires Restart)", self)
         self.translucent_background_switch.setChecked(config["Settings"]["translucent_background"])
@@ -260,6 +275,25 @@ PySide6 Version: {PySide6.__version__}
 Qt Version: {PySide6.QtCore.__version__}
 """, self)
         self.sixth_tab_layout.addWidget(self.your_pc_info)
+
+    def change_window_animation(self, text):
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            config['Settings']['window_animation'] = text
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
+    def change_hide_from_taskbar(self, state):
+        with open('config.toml', 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                config['Settings']['hide_from_taskbar'] = False
+            elif state == 2:
+                config['Settings']['hide_from_taskbar'] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
 
     def change_bgm(self, state):
         with open('config.toml', 'r+') as file:
@@ -706,6 +740,11 @@ class MainWindow(QtWidgets.QWidget):
         self.textbox_layout = QtWidgets.QHBoxLayout()
         self.search_bar = QtWidgets.QLineEdit(self)
         self.search_bar.setPlaceholderText("Start typing to search...")
+        # make placeholder text bold
+        font = self.search_bar.font()
+        font.setPointSize(12)
+        font.setBold(True)
+        self.search_bar.setFont(font)
         self.search_bar.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + fg_color + """;
@@ -791,6 +830,29 @@ class MainWindow(QtWidgets.QWidget):
         background: none;
         height: 0px;
      }
+                                       
+    QScrollBar:horizontal {
+        border: none;
+        background: lightgrey;
+        height: 12px;
+        margin: 0 15px 0 15px;
+        border-radius: 6px;
+    }
+    QScrollBar::handle:horizontal {
+        background: grey;
+        min-width: 30px;
+        border-radius: 6px;
+    }
+    QScrollBar::add-line:horizontal {
+        border: none;
+        background: none;
+        width: 0px;
+    }
+    QScrollBar::sub-line:horizontal {
+        border: none;
+        background: none;
+        width: 0px;
+    }                                   
 """)
         self.scroll_area.setWidget(self.buttons_widget)
         self.scroll_area.setWidgetResizable(True)
@@ -815,7 +877,9 @@ class MainWindow(QtWidgets.QWidget):
             # add button
             self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", ""), self)
             self.button.setToolTip("Click to launch")
-            self.button.setStyleSheet(theme_toml[theme_style]["button_qss"])
+            global button_qss
+            button_qss = "QPushButton { border: none; text-align: left; } QPushButton:hover { background-color: #44475A; } QPushButton:pressed { background-color: #44475A; }"
+            self.button.setStyleSheet(button_qss)
             self.button.clicked.connect(lambda checked=False, text=program_list[i]: self.on_button_clicked(text))
             self.buttons_layout.addWidget(self.button)
         # self.change_text(text)
@@ -828,7 +892,23 @@ class MainWindow(QtWidgets.QWidget):
             self.draggable_window = config["Settings"]["draggable_window"]
 
     def on_button_clicked(self, text):
-        self.on_enter_pressed()
+        program = narrow_down(text)[0]
+        if self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == config["Settings"]["no_results_text"]:
+            self.search_bar.clear()
+        elif program.endswith(".kaboom"):
+            if program == "Open kaboom Settings.kaboom":
+                self.search_bar.clear()
+                self.open_settings()
+            elif program == "Reset kaboom Settings.kaboom":
+                self.search_bar.clear()
+                self.reset_settings_confirmation()
+            elif program == "Exit kaboom.kaboom":
+                sys.exit()
+        else:
+            determine_program(program)
+            self.search_bar.clear()
+            self.toggle_window()
+        
 
     def update_font_size(self):
         # volume = self.player.audio_get_volume()
@@ -865,13 +945,24 @@ class MainWindow(QtWidgets.QWidget):
             config = toml.load(file)
         if config["Settings"]["auto_pause_bgm"] and config["Settings"]["bgm"]:
             self.player.pause()
-        # if minimized
+        window_animation = config["Settings"]["window_animation"]
         if not self.windowState() == QtCore.Qt.WindowMinimized:
-            self.hide()
+            if window_animation == "Fade":
+                for i in range(round(config["Settings"]["opacity"] * 100), 0, -5):
+                    self.setWindowOpacity(i / 100)
+                    time.sleep(0.005)
+            if not config["Settings"]["hide_from_taskbar"]:
+                self.hide()
             self.setWindowState(QtCore.Qt.WindowMinimized)
         else:
             self.setWindowState(QtCore.Qt.WindowNoState)
-            self.show()
+            if not config["Settings"]["hide_from_taskbar"]:
+                self.show()
+            if window_animation == "Fade":
+                for i in range(0, round(config["Settings"]["opacity"] * 100), 5):
+                    self.setWindowOpacity(i / 100)
+                    time.sleep(0.005)
+                self.setWindowOpacity(config["Settings"]["opacity"])
             widget.activateWindow()
             self.search_bar.setFocus()
             if platform.system() == "Windows":
@@ -951,6 +1042,7 @@ class MainWindow(QtWidgets.QWidget):
             self.button = QtWidgets.QPushButton(new_text, self)
             self.button.setStyleSheet("border: none; text-align: left;")
             self.button.setToolTip("Click to copy to clipboard.")
+            self.button.setStyleSheet(f"border: none; text-align: left; font-size: {config['Settings']['font_size'] * 4}px;")
             self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(new_text.strip("=")))
             self.buttons_layout.addWidget(self.button)
         else:
@@ -959,7 +1051,7 @@ class MainWindow(QtWidgets.QWidget):
                 # new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
                 self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", "").rsplit("\\")[-1], self)
                 self.button.setToolTip("Click to launch")
-                self.button.setStyleSheet(theme_toml["dark" if dark else "light"]["button_qss"])
+                self.button.setStyleSheet(button_qss)
                 self.button.clicked.connect(lambda checked=False, text=narrowed_list[i]: self.on_button_clicked(text))
                 self.buttons_layout.addWidget(self.button)
 
@@ -1085,6 +1177,13 @@ if __name__ == "__main__":
         widget.move((QtWidgets.QApplication.primaryScreen().size().width() - widget.width()) / 2, (QtWidgets.QApplication.primaryScreen().size().height() - widget.height()) / 2)
 
     widget.show()
+    if config["Settings"]["window_animation"] == "Fade":
+        widget.setWindowOpacity(0)
+        for i in range(0, round(config["Settings"]["opacity"] * 100), 5):
+            widget.setWindowOpacity(i / 100)
+            time.sleep(0.005)
+        widget.setWindowOpacity(config["Settings"]["opacity"])
+
     if config["Settings"]["bgm"]:
         import vlc
         QtCore.QTimer.singleShot(0, widget.play_audio)

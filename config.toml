@@ -1,9 +1,9 @@
 [Settings]
-theme = "Discordia"
+theme = "kaboom"
 theme_style = "light"
 qt_style = "Fusion.qss"
 hotkey = "shift + left shift"
-bgm = true
+bgm = false
 bgm_file = "griddy.wav"
 bgm_volume = 0.0
 auto_pause_bgm = true
@@ -15,6 +15,9 @@ borderless = true
 rounded_corners = true
 always_on_top = true
 draggable_window = true
+hide_from_taskbar = true
+window_animation = "Fade"
+window_animation_speed = 0.005
 width = 600
 height = 250
 search_bar_location = "top"
