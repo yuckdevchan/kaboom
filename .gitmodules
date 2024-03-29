@@ -1,0 +1,3 @@
+[submodule "qtacrylic"]
+	path = qtacrylic
+	url = https://github.com/blitpxl/qtacrylic
