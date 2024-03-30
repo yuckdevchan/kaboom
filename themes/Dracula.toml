@@ -2,6 +2,7 @@
 dark = false
 background = "#F8F8F2"
 foreground = "#FF79C6"
+foreground2 = "#FF79C6"
 text = "#282A36"
 icons = "#FF79C6"
 border = "none"
@@ -11,6 +12,7 @@ text-align = "left"
 dark = true
 background = "#282A36"
 foreground = "#FF79C6"
+foreground2 = "#FF79C6"
 text = "#F8F8F2"
 icons = "#FF79C6"
 border = "none"

@@ -2,6 +2,7 @@
 dark = false
 background = "#f2f2f2"
 foreground = "#000000"
+foreground2 = "grey"
 text = "#000000"
 icons = "#000000"
 button_qss = "border: none; text-align: left;"
@@ -10,6 +11,7 @@ button_qss = "border: none; text-align: left;"
 dark = true
 background = "#27282a"
 foreground = "#ffffff"
+foreground2 = "grey"
 text = "#ffffff"
 icons = "#ffffff"
 button_qss = "border: none; text-align: left;"

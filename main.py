@@ -1,24 +1,25 @@
 import sys, toml, os, platform, subprocess, signal, psutil, PySide6, time
-from PySide6.QtWidgets import QLabel, QGraphicsDropShadowEffect, QStyle, QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QWidget, QSizePolicy
-from PySide6.QtCore import Qt, Slot, QTimer, QUrl
+from PySide6.QtWidgets import QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QFileIconProvider
+from PySide6.QtCore import Qt, Slot, QTimer, QUrl, QFileInfo
 from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6 import QtCore, QtWidgets, QtGui
+from qtacrylic import WindowEffect
 from pathlib import Path
 
 if platform.system() == "Windows":
-    import keyboard
-    import wmi
+    import keyboard, wmi, win32com, win32gui, win32ui, pyautogui
 
-from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme
+from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut
+from config_tools import get_config, get_core_config
 
 class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        with open('config.toml', 'r') as file:
-            config = toml.load(file)
-        self.setWindowTitle(f"{config['Settings']['program_title']} Settings")
-        self.resize(600, 100)
+        with open(get_config(), 'r') as file:
+            config_toml = toml.load(file)
+        self.setWindowTitle(f"{core_config['Settings']['program_title']} Settings")
+        self.resize(700, 100)
         self.main_layout = QtWidgets.QVBoxLayout(self)
         self.tab_widget = QtWidgets.QTabWidget(self)
         self.main_layout.addWidget(self.tab_widget)
@@ -29,8 +30,11 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.fifth_tab = QtWidgets.QWidget(self)
         self.sixth_tab = QtWidgets.QWidget(self)
         self.seventh_tab = QtWidgets.QWidget(self)
+        self.eighth_tab = QtWidgets.QWidget(self)
+
         self.tab_widget.addTab(self.first_tab, "&Appearance")
         self.tab_widget.addTab(self.second_tab, "&Compositing")
+        self.tab_widget.addTab(self.eighth_tab, "&Plugins")
         self.tab_widget.addTab(self.third_tab, "&Search")
         self.tab_widget.addTab(self.seventh_tab, "S&tartup")
         self.tab_widget.addTab(self.fifth_tab, "&Music")
@@ -123,7 +127,8 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.always_on_top_switch.stateChanged.connect(self.change_always_on_top)
         self.second_tab_layout.addWidget(self.always_on_top_switch)
 
-        self.hide_from_taskbar_switch = QtWidgets.QCheckBox("Hide from Taskbar", self)
+        taskbar_name = "Dock" if platform.system() == "Darwin" else "Taskbar"
+        self.hide_from_taskbar_switch = QtWidgets.QCheckBox(f"Hide from {taskbar_name}", self)
         self.hide_from_taskbar_switch.setChecked(config["Settings"]["hide_from_taskbar"])
         self.hide_from_taskbar_switch.stateChanged.connect(self.change_hide_from_taskbar)
         self.second_tab_layout.addWidget(self.hide_from_taskbar_switch)
@@ -136,54 +141,29 @@ class SettingsPopup2(QtWidgets.QDialog):
         # third tab
         self.third_tab_layout = QtWidgets.QGridLayout(self.third_tab)
 
+        self.max_results_label = QtWidgets.QLabel("Max Results (Default: 6, Choose -1 for Unlimited)", self)
+        self.max_results_label.setStyleSheet("font-weight: bold;")
+        self.third_tab_layout.addWidget(self.max_results_label)
+
+        self.max_results_number = QtWidgets.QSpinBox(self)
+        self.max_results_number.setMinimum(-1)
+        self.max_results_number.setMaximum(2000)
+        self.max_results_number.setValue(config_toml["Settings"]["max_results"])
+        self.max_results_number.valueChanged.connect(self.change_max_results)
+        self.third_tab_layout.addWidget(self.max_results_number)
+
         self.verbatim_search_switch = QtWidgets.QCheckBox("Verbatim Search", self)
         self.verbatim_search_switch.setChecked(config["Settings"]["verbatim_search"])
         self.verbatim_search_switch.stateChanged.connect(self.change_verbatim_search)
         self.third_tab_layout.addWidget(self.verbatim_search_switch)
 
-        self.default_search_label = QtWidgets.QLabel("Default Search Engine:", self)
-        self.third_tab_layout.addWidget(self.default_search_label)
-
-        self.default_search_engine_combobox = QtWidgets.QComboBox(self)
-        search_engines = []
-        for search_engine in config["Search_Engines"].keys(): search_engines.append(search_engine.title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
-        self.default_search_engine_combobox.addItems(search_engines)
-        self.default_search_engine_combobox.setCurrentText(config["Settings"]["default_search_engine"].title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
-        self.default_search_engine_combobox.currentTextChanged.connect(self.change_default_search_engine)
-        self.third_tab_layout.addWidget(self.default_search_engine_combobox)
-
         self.no_results_text_label = QtWidgets.QLabel("No Results Text:", self)
         self.third_tab_layout.addWidget(self.no_results_text_label)
 
         self.no_results_text_input = QtWidgets.QLineEdit(self)
-        self.no_results_text_input.setText(config["Settings"]["no_results_text"])
+        self.no_results_text_input.setText(core_config["Settings"]["no_results_text"])
         self.no_results_text_input.textChanged.connect(self.change_no_results_text)
         self.third_tab_layout.addWidget(self.no_results_text_input)
-
-        self.search_start_menu_switch = QtWidgets.QCheckBox("Start Menu", self)
-        self.search_start_menu_switch.setChecked(config["Settings"]["search_start_menu"])
-        self.search_start_menu_switch.stateChanged.connect(self.change_search_start_menu)
-        self.third_tab_layout.addWidget(self.search_start_menu_switch)
-
-        self.search_calculator_switch = QtWidgets.QCheckBox("Calculator", self)
-        self.search_calculator_switch.setChecked(config["Settings"]["search_calculator"])
-        self.search_calculator_switch.stateChanged.connect(self.change_search_calculator)
-        self.third_tab_layout.addWidget(self.search_calculator_switch)
-
-        self.search_web_switch = QtWidgets.QCheckBox("Web", self)
-        self.search_web_switch.setChecked(config["Settings"]["search_web"])
-        self.search_web_switch.stateChanged.connect(self.change_search_web)
-        self.third_tab_layout.addWidget(self.search_web_switch)
-
-        self.search_steam_switch = QtWidgets.QCheckBox("Steam", self)
-        self.search_steam_switch.setChecked(config["Settings"]["search_steam"])
-        self.search_steam_switch.stateChanged.connect(self.change_search_steam)
-        self.third_tab_layout.addWidget(self.search_steam_switch)
-
-        self.search_bsman_switch = QtWidgets.QCheckBox("BSManager", self)
-        self.search_bsman_switch.setChecked(config["Settings"]["search_bsman"])
-        self.search_bsman_switch.stateChanged.connect(self.change_search_bsman)
-        self.third_tab_layout.addWidget(self.search_bsman_switch)
 
         # fourth tab
         self.fourth_tab_layout = QtWidgets.QGridLayout(self.fourth_tab)
@@ -241,11 +221,11 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path(f"images/logo-{theme}.svg"))))
         self.sixth_tab_layout.addWidget(self.kaboom_logo)
 
-        self.kaboom_info_title = QtWidgets.QLabel("Kaboom Info:", self)
+        self.kaboom_info_title = QtWidgets.QLabel(f"{core_config['Settings']['program_title']} Info:", self)
         self.kaboom_info_title.setStyleSheet("font-weight: bold;")
         self.sixth_tab_layout.addWidget(self.kaboom_info_title)
 
-        self.kaboom_info = QtWidgets.QLabel(f"Config File Location: {os.path.abspath('config.toml')}\nProgram Version: {config['Settings']['program_version']}", self)
+        self.kaboom_info = QtWidgets.QLabel(f"Config File Location: {os.path.abspath('config.toml')}\nProgram Version: {core_config['Settings']['program_version']}\nAuthor: {core_config['Settings']['author']}\nBug Report URL: {core_config['Settings']['bug_report_url']}", self)
         self.sixth_tab_layout.addWidget(self.kaboom_info)
 
         self.your_pc_info_title = QtWidgets.QLabel("Your PC Info:", self)
@@ -264,6 +244,54 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.open_in_background_switch.setChecked(config["Settings"]["open_in_background"])
         self.open_in_background_switch.stateChanged.connect(self.change_open_in_background)
         self.seventh_tab_layout.addWidget(self.open_in_background_switch)
+
+        # eighth tab
+        self.eighth_tab_layout = QtWidgets.QVBoxLayout(self.eighth_tab)
+
+        self.search_providers_label = QtWidgets.QLabel("Search Providers", self)
+        self.search_providers_label.setStyleSheet("font-weight: bold;")
+        self.eighth_tab_layout.addWidget(self.search_providers_label)
+
+        self.search_start_menu_switch = QtWidgets.QCheckBox("Start Menu Apps", self)
+        self.search_start_menu_switch.setChecked(config_toml["Settings"]["search_start_menu"])
+        self.search_start_menu_switch.stateChanged.connect(self.change_search_start_menu)
+        self.eighth_tab_layout.addWidget(self.search_start_menu_switch)
+
+        self.search_calculator_switch = QtWidgets.QCheckBox("Maths Processing", self)
+        self.search_calculator_switch.setChecked(config_toml["Settings"]["search_calculator"])
+        self.search_calculator_switch.stateChanged.connect(self.change_search_calculator)
+        self.eighth_tab_layout.addWidget(self.search_calculator_switch)
+
+        self.filesystem_search_switch = QtWidgets.QCheckBox("Filesystem Search", self)
+        self.filesystem_search_switch.setChecked(config_toml["Settings"]["search_filesystem"])
+        self.filesystem_search_switch.stateChanged.connect(self.change_search_filesystem)
+        self.eighth_tab_layout.addWidget(self.filesystem_search_switch)
+
+        self.search_web_switch = QtWidgets.QCheckBox("Web Search", self)
+        self.search_web_switch.setChecked(config_toml["Settings"]["search_web"])
+        self.search_web_switch.stateChanged.connect(self.change_search_web)
+        self.eighth_tab_layout.addWidget(self.search_web_switch)
+
+        self.default_search_label = QtWidgets.QLabel("Default Search Engine:", self)
+        self.eighth_tab_layout.addWidget(self.default_search_label)
+
+        self.default_search_engine_combobox = QtWidgets.QComboBox(self)
+        search_engines = []
+        for search_engine in config["Search_Engines"].keys(): search_engines.append(search_engine.title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
+        self.default_search_engine_combobox.addItems(search_engines)
+        self.default_search_engine_combobox.setCurrentText(config_toml["Settings"]["default_search_engine"].title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
+        self.default_search_engine_combobox.currentTextChanged.connect(self.change_default_search_engine)
+        self.eighth_tab_layout.addWidget(self.default_search_engine_combobox)
+
+        self.search_steam_switch = QtWidgets.QCheckBox("Steam Game Search", self)
+        self.search_steam_switch.setChecked(config_toml["Settings"]["search_steam"])
+        self.search_steam_switch.stateChanged.connect(self.change_search_steam)
+        self.eighth_tab_layout.addWidget(self.search_steam_switch)
+
+        self.search_bsman_switch = QtWidgets.QCheckBox("BSManager Instance Search", self)
+        self.search_bsman_switch.setChecked(config_toml["Settings"]["search_bsman"])
+        self.search_bsman_switch.stateChanged.connect(self.change_search_bsman)
+        self.eighth_tab_layout.addWidget(self.search_bsman_switch)
 
         if platform.system() == "Windows":
             manufacturer_and_model = f"{wmi.WMI().Win32_ComputerSystem()[0].Manufacturer} - {wmi.WMI().Win32_ComputerSystem()[0].Model}"
@@ -291,8 +319,13 @@ Qt Version: {PySide6.QtCore.__version__}
 """, self)
         self.sixth_tab_layout.addWidget(self.your_pc_info)
 
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        if platform.system() == "Windows":
+            self.windowFX = WindowEffect()
+            self.windowFX.setAeroEffect(self.winId())
+
     def change_window_animation(self, text):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             config['Settings']['window_animation'] = text
             file.seek(0)
@@ -300,7 +333,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_hide_from_taskbar(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['hide_from_taskbar'] = False
@@ -311,7 +344,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_bgm(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 if hasattr(self.parent(), "player"):
@@ -326,7 +359,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_auto_pause_bgm(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['auto_pause_bgm'] = False
@@ -338,7 +371,7 @@ Qt Version: {PySide6.QtCore.__version__}
 
     def change_bgm_volume(self, value):
         self.bgm_volume_label.setText(f"Volume: {value}%")
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             config['Settings']['bgm_volume'] = value / 100
             file.seek(0)
@@ -347,7 +380,7 @@ Qt Version: {PySide6.QtCore.__version__}
             self.parent().player.audio_set_volume(value)
 
     def change_bgm_file(self, text):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             config['Settings']['bgm_file'] = text
             file.seek(0)
@@ -363,11 +396,11 @@ Qt Version: {PySide6.QtCore.__version__}
         self.parent().search_bar.setFocus()
 
     def showEvent(self, event):
-        with open('config.toml', 'r') as file:
+        with open(get_config(), 'r') as file:
             config = toml.load(file)
 
     def change_theme(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['dark_mode'] = False
@@ -406,6 +439,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_to_dark_icons(self, fg_colour):
+        self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path("images/logo-dark.svg"))))
         self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
         self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
         self.parent().hide_button.setIcon(QIcon("images/hide-dark.svg"))
@@ -420,6 +454,7 @@ Qt Version: {PySide6.QtCore.__version__}
 """)
 
     def change_to_light_icons(self, fg_colour):
+        self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path("images/logo-light.svg"))))
         self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
         self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
         self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
@@ -464,7 +499,7 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.change_to_light_icons(fg_colour=theme[theme_style]["foreground"])
             
             # write changes
-            with open('config.toml', 'r+') as file:
+            with open(get_config(), 'r+') as file:
                 config = toml.load(file)
                 config['Settings']['theme'] = state
                 config['Settings']['theme_style'] = theme_style
@@ -472,21 +507,11 @@ Qt Version: {PySide6.QtCore.__version__}
                 toml.dump(config, file)
                 file.truncate()
 
-            if theme[theme_style]["button_qss"] != self.parent().button.styleSheet():
-                restart_kaboom = QtWidgets.QMessageBox(self)
-                restart_kaboom.setWindowTitle("Restart Kaboom")
-                restart_kaboom.setText("Restart Kaboom to apply changes?")
-                restart_kaboom.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-                restart_kaboom.button(QtWidgets.QMessageBox.No).setDisabled(True)
-                restart_kaboom.setDefaultButton(QtWidgets.QMessageBox.Yes)
-                restart_kaboom.buttonClicked.connect(sys.exit)
-                restart_kaboom.exec()
-
     def change_theme_radio(self, checked):
         self.change_theme2(self.themes_combobox.currentText())
 
     def change_colour_overlay(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['colour_overlay_mode'] = False
@@ -515,7 +540,7 @@ Qt Version: {PySide6.QtCore.__version__}
 
     def change_qt_style(self, text):
         text += ".qss"
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             config['Settings']['qt_style'] = text
             file.seek(0)
@@ -529,7 +554,7 @@ Qt Version: {PySide6.QtCore.__version__}
                 QtWidgets.QApplication.setStyle(text)
 
     def change_borderless(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['borderless'] = False
@@ -545,7 +570,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_rounded_corners(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['rounded_corners'] = False
@@ -558,7 +583,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_always_on_top(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['always_on_top'] = False
@@ -573,7 +598,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_translucent_background(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['translucent_background'] = False
@@ -591,7 +616,7 @@ Qt Version: {PySide6.QtCore.__version__}
         else:
             label_value = str(value)
         self.opacity_label.setText(f"Opacity: {label_value}%")
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             config['Settings']['opacity'] = value / 100
             file.seek(0)
@@ -600,7 +625,7 @@ Qt Version: {PySide6.QtCore.__version__}
             self.parent().setWindowOpacity(value / 100)
 
     def change_draggable_window(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['draggable_window'] = False
@@ -611,7 +636,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_sidebar_mode(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['sidebar_mode'] = False
@@ -625,8 +650,17 @@ Qt Version: {PySide6.QtCore.__version__}
             toml.dump(config, file)
             file.truncate()
 
+    def change_max_results(self, value):
+        with open(get_config(), 'r+') as file:
+            config = toml.load(file)
+            config['Settings']['max_results'] = value
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+        max_results = value
+
     def change_verbatim_search(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['verbatim_search'] = False
@@ -637,7 +671,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_default_search_engine(self, text):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             config['Settings']['default_search_engine'] = text.lower().replace("ask.com", "askcom")
             file.seek(0)
@@ -645,15 +679,15 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_no_results_text(self, text):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
-            config['Settings']['no_results_text'] = text
+            core_config['Settings']['no_results_text'] = text
             file.seek(0)
             toml.dump(config, file)
             file.truncate()
 
     def change_search_start_menu(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['search_start_menu'] = False
@@ -664,7 +698,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_search_calculator(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['search_calculator'] = False
@@ -675,7 +709,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_search_web(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['search_web'] = False
@@ -686,7 +720,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_search_steam(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['search_steam'] = False
@@ -697,7 +731,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_search_bsman(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['search_bsman'] = False
@@ -707,8 +741,19 @@ Qt Version: {PySide6.QtCore.__version__}
             toml.dump(config, file)
             file.truncate()
 
+    def change_search_filesystem(self, state):
+        with open(get_config(), 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                config['Settings']['search_filesystem'] = False
+            elif state == 2:
+                config['Settings']['search_filesystem'] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
     def change_open_on_startup(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['open_on_startup'] = False
@@ -721,7 +766,7 @@ Qt Version: {PySide6.QtCore.__version__}
             file.truncate()
 
     def change_open_in_background(self, state):
-        with open('config.toml', 'r+') as file:
+        with open(get_config(), 'r+') as file:
             config = toml.load(file)
             if state == 0:
                 config['Settings']['open_in_background'] = False
@@ -747,9 +792,9 @@ Qt Version: {PySide6.QtCore.__version__}
         if button.text() == "&Yes":
             with open(Path("configs", f'default-{platform.system().lower().replace("darwin", "macos")}.toml', 'r')) as file:
                 default_config = toml.load(file)
-            with open('config.toml', 'w') as file:
+            with open(get_config(), 'w') as file:
                 toml.dump(default_config, file)
-            sys.exit()
+            os._exit(0)
 
     def edit_toml(self):
         os.system("start config.toml")
@@ -757,23 +802,28 @@ Qt Version: {PySide6.QtCore.__version__}
 class MainWindow(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-        with open('config.toml', 'r') as file:
-            config = toml.load(file)
-            with open(Path("themes", f"{config['Settings']['theme']}.toml"), "r") as theme_file:
-                global theme_toml
-                theme_toml = toml.load(theme_file)
-                theme_style = config["Settings"]["theme_style"].lower()
-                bg_color = theme_toml[theme_style]["background"]
-                fg_color = theme_toml[theme_style]["foreground"]
-                text_color = theme_toml[theme_style]["text"]
-                icon_color = theme_toml[theme_style]["icons"]
-                global dark
-                dark = theme_toml[theme_style]["dark"]
-            self.setStyleSheet(f"background-color: {bg_color}; color: {text_color};")
+        with open(Path("themes", f"{config_toml['Settings']['theme']}.toml"), "r") as theme_file:
+            global theme_toml
+            theme_toml = toml.load(theme_file)
+            global theme_style
+            theme_style = config_toml["Settings"]["theme_style"].lower()
+            bg_color = theme_toml[theme_style]["background"]
+            fg_color = theme_toml[theme_style]["foreground"]
+            text_color = theme_toml[theme_style]["text"]
+            icon_color = theme_toml[theme_style]["icons"]
+            global dark
+            dark = theme_toml[theme_style]["dark"]
+        self.setStyleSheet(f"background-color: {bg_color}; color: {text_color};")
 
         if platform.system() == "Windows":
-            keyboard.add_hotkey(config["Settings"]["hotkey"], self.toggle_window)
+            keyboard.add_hotkey(config_toml["Settings"]["hotkey"], self.toggle_window, suppress=True)
             keyboard.add_hotkey("escape", self.escape_pressed)
+            self.current_button_index = 0
+            self.button_selected = False
+            if config_toml["Settings"]["arrow_key_navigation"]:
+                keyboard.add_hotkey("down", self.down_pressed)
+                keyboard.add_hotkey("up", self.up_pressed)
+                keyboard.add_hotkey("enter", self.on_enter_pressed)
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.textbox_layout = QtWidgets.QHBoxLayout()
@@ -809,12 +859,12 @@ class MainWindow(QtWidgets.QWidget):
         self.settings_button.setStyleSheet(self.button_style)
         self.settings_button.setToolTip("Preferences")
         self.exit_button = QtWidgets.QPushButton(self)
-        self.exit_button.setToolTip(f"Exit {config['Settings']['program_title']}")
+        self.exit_button.setToolTip(f"Exit {core_config['Settings']['program_title']}")
         self.exit_button.setFlat(True)
         self.exit_button.setStyleSheet(self.button_style)
         self.hide_button = QtWidgets.QPushButton(self)
         self.hide_button.setStyleSheet(self.button_style)
-        self.hide_button.setToolTip(f"Hide {config['Settings']['program_title']}")
+        self.hide_button.setToolTip(f"Hide {core_config['Settings']['program_title']}")
 
         self.clear_text_button = QtWidgets.QPushButton(self)
         self.clear_text_button.setToolTip("Clear Text Field")
@@ -823,7 +873,7 @@ class MainWindow(QtWidgets.QWidget):
         self.clear_text_button.clicked.connect(self.search_bar.clear)
         self.clear_text_button.clicked.connect(self.search_bar.setFocus)
         self.hide_button.clicked.connect(self.toggle_window)
-        self.exit_button.clicked.connect(sys.exit)
+        self.exit_button.clicked.connect(self.exit_program)
 
         if dark:
             self.settings_button.setIcon(QIcon("images/settings-dark.svg"))
@@ -897,7 +947,7 @@ class MainWindow(QtWidgets.QWidget):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
 
-        if config["Settings"]["search_bar_location"] == "bottom":
+        if config_toml["Settings"]["search_bar_location"] == "bottom":
             self.layout.addLayout(self.textbox_layout)
             self.layout.addWidget(self.scroll_area)
         else:
@@ -908,7 +958,7 @@ class MainWindow(QtWidgets.QWidget):
         self.search_bar.returnPressed.connect(self.on_enter_pressed)
         self.settings_button.clicked.connect(self.open_settings)
 
-        program_list = list_programs()
+        program_list = list_programs()[:max_results]
         program_list = sorted([program.rsplit("\\")[-1] for program in program_list])
         text = ""
         for i in range(len(program_list)):
@@ -917,8 +967,10 @@ class MainWindow(QtWidgets.QWidget):
             self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", ""), self)
             self.button.setToolTip("Click to launch")
             global button_qss
-            button_qss = "QPushButton { border: none; text-align: left; } QPushButton:hover { background-color: #44475A; } QPushButton:pressed { background-color: #44475A; }"
+            button_qss = "QPushButton { border: none; text-align: left; } QPushButton:hover { background-color: " + theme_toml[theme_style]["foreground2"] + "; } QPushButton:pressed { background-color: #44475A; }"
             self.button.setStyleSheet(button_qss)
+            if config["Settings"]["program_icons"]:
+                self.button.setIcon(self.get_ico_from_shortcut(str(program_name_to_shortcut(program_list[i]))))
             self.button.clicked.connect(lambda checked=False, text=program_list[i]: self.on_button_clicked(text))
             self.buttons_layout.addWidget(self.button)
         # self.change_text(text)
@@ -926,13 +978,23 @@ class MainWindow(QtWidgets.QWidget):
         self.m_drag = False
         self.m_DragPosition = QtCore.QPoint()
 
-        with open('config.toml', 'r') as file:
-            config = toml.load(file)
-            self.draggable_window = config["Settings"]["draggable_window"]
+        self.draggable_window = config_toml["Settings"]["draggable_window"]
 
+        if config_toml["Settings"]["translucent_background"]:
+            self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+            if platform.system() == "Windows":
+                self.windowFX = WindowEffect()
+                self.windowFX.setAeroEffect(self.winId())
+
+    def get_ico_from_shortcut(self, shortcut):
+        provider = QFileIconProvider()
+        info = QFileInfo(shortcut)
+        icon = QIcon(provider.icon(info))
+        return icon
+    
     def on_button_clicked(self, text):
         program = narrow_down(text)[0]
-        if self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == config["Settings"]["no_results_text"]:
+        if self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == core_config["Settings"]["no_results_text"]:
             self.search_bar.clear()
         elif program.endswith(".kaboom"):
             if program == "Open kaboom Settings.kaboom":
@@ -942,12 +1004,11 @@ class MainWindow(QtWidgets.QWidget):
                 self.search_bar.clear()
                 self.reset_settings_confirmation()
             elif program == "Exit kaboom.kaboom":
-                sys.exit()
+                os._exit(0)
         else:
             determine_program(program)
             self.search_bar.clear()
             self.toggle_window()
-        
 
     def update_font_size(self):
         # volume = self.player.audio_get_volume()
@@ -978,10 +1039,11 @@ class MainWindow(QtWidgets.QWidget):
     def mouseReleaseEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
             self.m_drag = False
+            self.search_bar.setFocus()
         
     def toggle_window(self):
-        with open ('config.toml', 'r') as file:
-            config = toml.load(file)
+        with open (get_config(), 'r') as file:
+            config_toml = toml.load(file)
         if config["Settings"]["auto_pause_bgm"] and config["Settings"]["bgm"]:
             self.player.pause()
         window_animation = config["Settings"]["window_animation"]
@@ -1002,7 +1064,10 @@ class MainWindow(QtWidgets.QWidget):
                     self.setWindowOpacity(i / 100)
                     time.sleep(0.005)
                 self.setWindowOpacity(config["Settings"]["opacity"])
-            widget.activateWindow()
+            self.activateWindow()
+            # if platform.system() == "Windows":
+                # win32gui.SetForegroundWindow(self.winId())
+            # pyautogui.hotkey('alt', 'tab')
             self.search_bar.setFocus()
             if platform.system() == "Windows":
                 self.tabtip_process = subprocess.Popen("C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe", shell=True)
@@ -1014,9 +1079,48 @@ class MainWindow(QtWidgets.QWidget):
     def center_window(self):
         widget.move((QtWidgets.QApplication.primaryScreen().size().width() - widget.width()) / 2, (QtWidgets.QApplication.primaryScreen().size().height() - widget.height()) / 2)
 
+    def exit_program(self):
+        os._exit(0)
+
     def escape_pressed(self):
-        if self.isVisible:
-            self.hide()
+        if widget.isVisible():
+            self.toggle_window()
+
+    def down_pressed(self):
+        if widget.isVisible():
+            # Reset the style of the currently active button
+            self.buttons_layout.itemAt(self.current_button_index).widget().setStyleSheet("border: none; text-align: left;")
+
+            # Move to the next button
+            if self.button_selected:
+                self.current_button_index += 1
+            else:
+                self.current_button_index = 0
+                self.button_selected = True
+            if self.current_button_index >= self.buttons_layout.count():
+                self.current_button_index = 0  # Loop back to the first button
+
+            # Change the style of the new active button
+            self.buttons_layout.itemAt(self.current_button_index).widget().setStyleSheet("background-color: " + theme_toml[theme_style]["foreground2"] + ";" + "border: none; text-align: left;")
+            self.button_selected = True
+
+    def up_pressed(self):
+        if widget.isVisible():
+            # Reset the style of the currently active button
+            self.buttons_layout.itemAt(self.current_button_index).widget().setStyleSheet("border: none; text-align: left;")
+
+            # Move to the previous button
+            if self.button_selected:
+                self.current_button_index -= 1
+            else:
+                self.current_button_index = 0
+                self.button_selected = True
+            if self.current_button_index < 0:
+                self.current_button_index = self.buttons_layout.count() - 1
+
+            # Change the style of the new active button
+            self.buttons_layout.itemAt(self.current_button_index).widget().setStyleSheet("background-color: " + theme_toml[theme_style]["foreground2"] + ";" + "border: none; text-align: left;")
+            self.button_selected = True
 
     def open_settings(self):
         if not widget.isVisible():
@@ -1062,6 +1166,7 @@ class MainWindow(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def on_text_changed(self, text):
+        self.button_selected = False
         self.remove_buttons()
         narrowed_list = narrow_down(text)
         if is_calculation(self.search_bar.text()):
@@ -1092,6 +1197,8 @@ class MainWindow(QtWidgets.QWidget):
                 self.button.setToolTip("Click to launch")
                 self.button.setStyleSheet(button_qss)
                 self.button.clicked.connect(lambda checked=False, text=narrowed_list[i]: self.on_button_clicked(text))
+                if config["Settings"]["program_icons"]:
+                    self.button.setIcon(self.get_ico_from_shortcut(str(program_name_to_shortcut(narrowed_list[i]))))
                 self.buttons_layout.addWidget(self.button)
 
 
@@ -1099,31 +1206,36 @@ class MainWindow(QtWidgets.QWidget):
     def change_text(self, text):
         # self.label.setText(text)
         # self.label.setToolTip(text)
-        with open('config.toml', 'r') as file:
+        with open(get_config(), 'r') as file:
             config = toml.load(file)
             # self.label.setFixedWidth(config["Settings"]["width"])
             # self.label.setFixedHeight(config["Settings"]["height"])
 
     @QtCore.Slot()
     def on_enter_pressed(self):
-        program = narrow_down(self.search_bar.text())[0]
-        if self.search_bar.text() == "exit":
-            sys.exit()
-        elif self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == config["Settings"]["no_results_text"]:
-            self.search_bar.clear()
-        elif program.endswith(".kaboom"):
-            if program == "Open kaboom Settings.kaboom":
-                self.search_bar.clear()
-                self.open_settings()
-            elif program == "Reset kaboom Settings.kaboom":
-                self.search_bar.clear()
-                self.reset_settings_confirmation()
-            elif program == "Exit kaboom.kaboom":
-                sys.exit()
-        else:
-            determine_program(self.search_bar.text())
-            self.search_bar.clear()
-            self.toggle_window()
+        if self.isVisible():
+            if self.button_selected:
+                self.button_selected = False
+                self.buttons_layout.itemAt(self.current_button_index).widget().click()
+            else:
+                program = narrow_down(self.search_bar.text())[0]
+                if self.search_bar.text() == "exit":
+                    os._exit(0)
+                elif self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == core_config["Settings"]["no_results_text"]:
+                    self.search_bar.clear()
+                elif program.endswith(".kaboom"):
+                    if program == "Open kaboom Settings.kaboom":
+                        self.search_bar.clear()
+                        self.open_settings()
+                    elif program == "Reset kaboom Settings.kaboom":
+                        self.search_bar.clear()
+                        self.reset_settings_confirmation()
+                    elif program == "Exit kaboom.kaboom":
+                        self.exit_program()
+                else:
+                    determine_program(self.search_bar.text())
+                    self.search_bar.clear()
+                    self.toggle_window()
 
 if platform.system() == "Linux":
     def read_value_from_file(filename):
@@ -1158,8 +1270,18 @@ if platform.system() == "Linux":
             execute_code(filename)
 
 if __name__ == "__main__":
-    with open('config.toml', 'r') as file:
+    global config_path
+    config_path = get_config()
+    print("Config Directory: " + str(config_path))
+    with open(config_path, 'r') as file:
         config = toml.load(file)
+        global config_toml
+        config_toml = config
+        global max_results
+        max_results = config_toml["Settings"]["max_results"]
+    with open(get_core_config(), 'r') as file:
+        global core_config
+        core_config = toml.load(file)
 
     if platform.system() == "Windows":
         windows_theme = get_windows_theme()
@@ -1180,11 +1302,11 @@ if __name__ == "__main__":
     # tray.setIcon(QIcon(str(Path("images", f"logo-{'light' if windows_theme == 'dark' else 'dark'}.svg"))))
     tray.setIcon(QIcon(str(Path("images", f"logo-dark.svg"))))
     tray.setVisible(True)
-    tray.setToolTip(f"{config['Settings']['program_title']}")
+    tray.setToolTip(f"{core_config['Settings']['program_title']}")
 
     menu = QMenu()
     
-    menu.addAction(QIcon(str(Path("images", f"logo-light.svg"))), config["Settings"]["program_title"])
+    menu.addAction(QIcon(str(Path("images", f"logo-light.svg"))), core_config["Settings"]["program_title"])
 
     show_action = menu.addAction(QIcon(str(Path("images", f"hide-light.svg"))), "&Toggle")
     settings_action = menu.addAction(QIcon(str(Path("images", f"settings-light.svg"))), "&Preferences")
@@ -1196,7 +1318,7 @@ if __name__ == "__main__":
     show_action.triggered.connect(widget.toggle_window)
     settings_action.triggered.connect(widget.open_settings)
     reset_position_action.triggered.connect(widget.center_window)
-    exit_action.triggered.connect(sys.exit)
+    exit_action.triggered.connect(os._exit)
 
     font = QtGui.QFont(config["Settings"]["font_family"], config["Settings"]["font_size"])
     app.setFont(font)
@@ -1208,7 +1330,7 @@ if __name__ == "__main__":
         widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
     widget.resize(config["Settings"]["width"], config["Settings"]["height"])
     widget.setWindowOpacity(config["Settings"]["opacity"])
-    widget.setWindowTitle(config["Settings"]["program_title"])
+    widget.setWindowTitle(core_config["Settings"]["program_title"])
     if config["Settings"]["sidebar_mode"]:
         widget.move(0, 0)
         widget.setFixedHeight(QtWidgets.QApplication.primaryScreen().size().height())
@@ -1222,7 +1344,7 @@ if __name__ == "__main__":
             widget.setWindowOpacity(i / 100)
             time.sleep(0.005)
         widget.setWindowOpacity(config["Settings"]["opacity"])
-    if config["Settings"]["hide_from_taskbar"]:
+    if not config["Settings"]["hide_from_taskbar"]:
         widget.toggle_window()
         widget.toggle_window()
     if config["Settings"]["open_in_background"]:
@@ -1231,4 +1353,4 @@ if __name__ == "__main__":
         import vlc
         QtCore.QTimer.singleShot(0, widget.play_audio)
 
-    sys.exit(app.exec())
+    os._exit(app.exec())

@@ -1,0 +1,6 @@
+[Settings]
+program_title = "kaboom"
+program_version = "testing"
+author = "Ethan Martin"
+no_results_text = "No results."
+bug_report_url = "https://github.com/yuckdevchan/kaboom/issues"

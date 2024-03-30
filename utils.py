@@ -1,13 +1,22 @@
-import os, pathlib, subprocess, config, toml, re, webbrowser, math, platform
+import os, pathlib, subprocess, toml, re, webbrowser, math, platform
 if platform.system() == "Windows":
     import win32com.client as win32
-    import winreg
+    import win32gui, winreg
+    from plyer import notification
 elif platform.system() == "Linux":
     import configparser
 from pathlib import Path
+from config_tools import get_config, get_core_config
+from os_tools import current_user
+from setproctitle import setproctitle
 
-with open("config.toml", "r") as f:
+setproctitle("kaboom")
+
+with open(get_config(), "r") as f:
     config = toml.loads(f.read())
+
+with open(get_core_config(), "r") as f:
+    core_config = toml.loads(f.read())
 
 def get_windows_theme():
     if platform.system() == "Windows":
@@ -16,9 +25,6 @@ def get_windows_theme():
         return 'light' if value == 1 else 'dark'
     else:
         return "dark"
-
-def current_user() -> str:
-    return os.getlogin()
 
 windows_directories = [
     'C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs',
@@ -41,6 +47,7 @@ def launch_program_cwd(program, cwd):
     subprocess.Popen(program, cwd=cwd)
 
 def list_programs() -> list:
+    max_results = config["Settings"]["max_results"]
     if platform.system() == "Windows":
         lnk_files = []
         for directory in windows_directories:
@@ -65,9 +72,9 @@ def list_programs() -> list:
                     program_list.append(file)
                 program_list.append(file)
     kaboom_programs = [
-        f"Open {config['Settings']['program_title']} Settings.kaboom", 
-        f"Reset {config['Settings']['program_title']} Settings.kaboom",
-        f"Exit {config['Settings']['program_title']}.kaboom",
+        f"Open {core_config['Settings']['program_title']} Settings.kaboom", 
+        f"Reset {core_config['Settings']['program_title']} Settings.kaboom",
+        f"Exit {core_config['Settings']['program_title']}.kaboom",
     ]
     program_list += kaboom_programs
     program_list = sorted(program_list)
@@ -161,31 +168,6 @@ def narrow_down(search_text):
             narrowed_list = ["Error: " + str(e).title()]
     elif search_text.startswith("web:") and config["Settings"]["search_web"]:
         narrowed_list = ["Press Enter to Search the Web."]
-    elif search_text.startswith("rizzler"):
-        narrowed_list = ["""
-gyatt
-i was in ohio before i met you
-i rizz too much and that's an issue
-but I grimace shake
-gyatt
-tell your friends it was nice to rizz them
-but i hope i never edge again
-i know it breaks your fanum
-taxing in ohio and i'm still not sigma
-four years no livy
-now you're looking pretty on adin ross twitch again
-i i-i-i-i can't rizz
-no i i-i-i-i can't mew
-so baby gronk me closer
-in the back-skibidi toilet
-that i know you can't afford
-kai cenat tatted on my shoulder
-pull the gyatt right off the corner
-from that fanum that you taxed
-from your roomate back in ohio
-we ain't never not the rizzler
-...
-we ain't never not the rizzler"""]
     else:
         for program in program_list:
             if not config["Settings"]["verbatim_search"]:
@@ -197,20 +179,36 @@ we ain't never not the rizzler"""]
             if search_text_ in program_:
                 narrowed_list.append(program)
         if len(narrowed_list) == 0:
-            narrowed_list = [config["Settings"]["no_results_text"]]
-    return narrowed_list
+            narrowed_list = [core_config["Settings"]["no_results_text"]]
+    max_results = config["Settings"]["max_results"]
+    return narrowed_list[:max_results]
+
+def send_notification(title, message):
+    notification.notify(
+        title=title,
+        message=message,
+        # app_icon=str(os.path.abspath(Path("images", "logo-light.ico"))),
+        timeout=60,
+    )
 
 def run_shortcut(shortcut: str):
     if platform.system() == "Windows":
         shell = win32.Dispatch("WScript.Shell")
-        shortcut = shell.CreateShortCut(shortcut)
+        try:
+            shortcut = shell.CreateShortCut(shortcut)
+        except Exception as e:
+            print(f"Task Failed Sucessfully (Caught Error): \n{e}")
+            send_notification("Task Failed Sucessfully", f"Failed to launch program.\n\nYou can report bugs at {core_config['Settings']['bug_report_url']}")
+            return
         print(f"Launched '{shortcut.Targetpath} {shortcut.Arguments}'")
-        subprocess.Popen([shortcut.Targetpath] + shortcut.Arguments.split())
+        try:
+            subprocess.Popen([shortcut.Targetpath] + shortcut.Arguments.split())
+        except OSError:
+            subprocess.Popen(f'start "" "{shortcut.Targetpath}" {shortcut.Arguments}', shell=True)
     elif platform.system() == "Linux":
         config = configparser.ConfigParser(interpolation=None)
         config.read(shortcut)
         print(config.read(shortcut))
-
         try:
             command = config['Desktop Entry']['Exec']
             if shortcut.endswith(".desktop"):
@@ -225,9 +223,12 @@ def run_shortcut(shortcut: str):
     elif platform.system() == "Darwin":
         subprocess.Popen(["open", shortcut])
 
+import win32com.client
+import os
+import struct
+import imghdr
 
-def determine_program(string):
-    print(string)
+def determine_program(string: str):
     narrowed_list = narrow_down(string)
     if len(narrowed_list) > 0:
         if string.startswith("steam:") and config["Settings"]["search_steam"]:
@@ -251,6 +252,21 @@ def determine_program(string):
             elif platform.system() == "Darwin":
                 shortcut_path = Path('/Applications') / narrowed_list[0]
             run_shortcut(str(shortcut_path))
+
+def program_name_to_shortcut(program_name: str) -> Path:
+    narrowed_list = narrow_down(program_name)
+    file_name = narrowed_list[0]
+    if platform.system() == "Windows":
+        shortcut_path = Path('C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs') / narrowed_list[0]
+        if not shortcut_path.exists():
+            shortcut_path = Path(f'C:\\Users\\{current_user()}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs') / narrowed_list[0]
+    elif platform.system() == "Linux":
+        shortcut_path = Path('/usr/share/applications') / narrowed_list[0]
+        if not shortcut_path.exists():
+            shortcut_path = Path(f'/home/{current_user()}/.local/share/applications') / narrowed_list[0]
+    elif platform.system() == "Darwin":
+        shortcut_path = Path('/Applications') / narrowed_list[0]
+    return Path(shortcut_path)
 
 def load_themes():
     themes = []

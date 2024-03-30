@@ -1,0 +1,13 @@
+[light]
+dark = true
+background = "transparent"
+foreground = "transparent"
+text = "#000000"
+icons = "#000000"
+
+[dark]
+dark = true
+background = "transparent"
+foreground = "transparent"
+text = "#000000"
+icons = "#000000"
