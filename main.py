@@ -824,6 +824,8 @@ class MainWindow(QtWidgets.QWidget):
                 keyboard.add_hotkey("down", self.down_pressed)
                 keyboard.add_hotkey("up", self.up_pressed)
                 keyboard.add_hotkey("enter", self.on_enter_pressed)
+            keyboard.add_hotkey("ctrl + x", self.on_yank_key_pressed)
+            keyboard.add_hotkey("ctrl + y", self.on_yank_key_pressed)
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.textbox_layout = QtWidgets.QHBoxLayout()
@@ -1236,6 +1238,11 @@ class MainWindow(QtWidgets.QWidget):
                     determine_program(self.search_bar.text())
                     self.search_bar.clear()
                     self.toggle_window()
+
+    def on_yank_key_pressed(self):
+        if self.isVisible and not self.search_bar.selectedText():
+            self.search_bar.clear()
+            self.search_bar.setFocus()
 
 if platform.system() == "Linux":
     def read_value_from_file(filename):
