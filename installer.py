@@ -32,6 +32,38 @@ class MyWidget(QtWidgets.QWidget):
             self.install_button.clicked.disconnect()
             self.install_button.clicked.connect(self.update)
 
+            self.reset_settings_button = QtWidgets.QPushButton("Reset settings")
+            self.reset_settings_button.clicked.connect(self.reset_settings_confirmation)
+            self.buttons_layout.addWidget(self.reset_settings_button)            
+
+    def reset_settings_confirmation(self):
+        # qmessage box
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setText("Are you sure you want to reset settings?")
+        msg.setInformativeText("This will delete all your settings.")
+        msg.setWindowTitle("Reset settings")
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+        msg.setDefaultButton(QtWidgets.QMessageBox.Cancel)
+        msg.exec()
+        if msg.result() == QtWidgets.QMessageBox.Ok:
+            self.reset_settings()
+
+    def reset_settings(self):
+        config_path = Path(os.getenv("LOCALAPPDATA")) / "kaboom" / "config.toml"
+        if config_path.exists():
+            config_path.unlink()
+        # qmessagebox
+        settings_have_been_reset_msg = QtWidgets.QMessageBox()
+        settings_have_been_reset_msg.setIcon(QtWidgets.QMessageBox.Information)
+        settings_have_been_reset_msg.setText("Settings have been reset.")
+        settings_have_been_reset_msg.setInformativeText("Click 'OK' to exit.")
+        settings_have_been_reset_msg.setWindowTitle("Settings reset")
+        settings_have_been_reset_msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        settings_have_been_reset_msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        settings_have_been_reset_msg.buttonClicked.connect(lambda: sys.exit())
+        settings_have_been_reset_msg.exec()
+
     def update(self):
         self.install_button.setEnabled(False)
         self.install_button.setText("Updating...")
@@ -62,9 +94,15 @@ class MyWidget(QtWidgets.QWidget):
         self.finished("installed")
     
     def finished(self, action):
-        self.text.setText(f"kaboom has been {action}.")
-        self.cancel_button.setText("Finish")
-        self.install_button.deleteLater()
+        finished_msg = QtWidgets.QMessageBox()
+        finished_msg.setIcon(QtWidgets.QMessageBox.Information)
+        finished_msg.setText(f"kaboom has been {action}.")
+        finished_msg.setInformativeText("Click 'OK' to exit.")
+        finished_msg.setWindowTitle(f"kaboom {action}")
+        finished_msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        finished_msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        finished_msg.buttonClicked.connect(lambda: sys.exit())
+        finished_msg.exec()
 
 if __name__ == "__main__":
     if platform.system() != "Windows":
