@@ -341,10 +341,6 @@ def run_shortcut(shortcut: str):
     elif platform.system() == "Darwin":
         subprocess.Popen(["open", shortcut])
 
-import win32com.client
-import os
-import struct
-
 def determine_program(string: str):
     narrowed_list = narrow_down(string)
     if len(narrowed_list) > 0:
