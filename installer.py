@@ -1,6 +1,7 @@
 import sys, random, os, subprocess, ctypes, platform
 from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtCore import QTimer
+from pathlib import Path
 
 class MyWidget(QtWidgets.QWidget):
     def __init__(self):
@@ -25,6 +26,21 @@ class MyWidget(QtWidgets.QWidget):
 
         self.layout.addLayout(self.buttons_layout)
 
+        if os.path.exists("C:\\Program Files\\kaboom"):
+            self.text.setText("kaboom is already installed.")
+            self.install_button.setText("Update / Repair")
+            self.install_button.clicked.disconnect()
+            self.install_button.clicked.connect(self.update)
+
+    def update(self):
+        self.install_button.setEnabled(False)
+        self.install_button.setText("Updating...")
+        self.text.setText("Updating kaboom...")
+        os.chdir("C:\\Program Files\\kaboom")
+        subprocess.run("git fetch --all")
+        self.text.setText("kaboom has been updated.")
+        self.finished("updated / repaired")
+
     def install(self):
         self.install_button.setEnabled(False)
         self.install_button.setText("Installing...")
@@ -34,19 +50,21 @@ class MyWidget(QtWidgets.QWidget):
         else:
             self.text.setText("Git is not installed. Installing git...")
             subprocess.run("winget install git -e")
-        if os.path.exists("kaboom"):
-            os.system("rmdir /s /q kaboom")
         QTimer.singleShot(100, self.clone_repo_and_install)
 
     def clone_repo_and_install(self):
-        subprocess.run("git clone https://github.com/yuckdevchan/kaboom.git")
+        subprocess.run("git clone https://github.com/yuckdevchan/kaboom.git kaboom-install")
         self.text.setText("Repository cloned. Installing kaboom...")
-        if os.path.exists("C:\\Program Files\\kaboom"):
-            os.system("rmdir /s /q \"C:\\Program Files\\kaboom\"")
-        subprocess.run('move kaboom \"C:\\Program Files\\\"')
-        # run Program Files/kaboom/scripts/create_lnk.py
+        subprocess.run('move kaboom-install \"C:\\Program Files\\kaboom"', shell=True)
         self.text.setText("kaboom installed. Creating start menu shortcut...")
         subprocess.run(f"{sys.executable} \"C:\\Program Files\\kaboom\\scripts\\create_lnk.py\"")
+        self.text.setText("Shortcut created. kaboom has been installed.")
+        self.finished("installed")
+    
+    def finished(self, action):
+        self.text.setText(f"kaboom has been {action}.")
+        self.cancel_button.setText("Finish")
+        self.install_button.deleteLater()
 
 if __name__ == "__main__":
     if platform.system() != "Windows":
