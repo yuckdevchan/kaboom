@@ -4,12 +4,12 @@ from PySide6.QtCore import Qt, Slot, QTimer, QUrl, QFileInfo, QThreadPool, QRunn
 from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont, QTextCursor
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6 import QtCore, QtWidgets, QtGui
-from qtacrylic import WindowEffect
 from markdown import markdown
 from pathlib import Path
 
 if platform.system() == "Windows":
     import keyboard, wmi, win32com, win32gui, win32ui
+    from qtacrylic import WindowEffect
 
 from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut, conversion
 from scripts.config_tools import get_config, get_core_config, get_program_directory
@@ -1100,35 +1100,37 @@ class MainWindow(QtWidgets.QWidget):
             self.toggle_show()
 
     def toggle_hide(self):
-        window_animation = config_toml["Settings"]["window_animation"]
-        if window_animation == "Fade":
-            for i in range(round(config["Settings"]["opacity"] * 100), 0, -5):
-                self.setWindowOpacity(i / 100)
-                time.sleep(0.005)
-        if config["Settings"]["hide_from_taskbar"]:
-            self.hide()
-        self.setWindowState(QtCore.Qt.WindowMinimized)
+        if not self.windowState() == QtCore.Qt.WindowMinimized:
+            window_animation = config_toml["Settings"]["window_animation"]
+            if window_animation == "Fade":
+                for i in range(round(config["Settings"]["opacity"] * 100), 0, -5):
+                    self.setWindowOpacity(i / 100)
+                    time.sleep(0.005)
+            if config["Settings"]["hide_from_taskbar"]:
+                self.hide()
+            self.setWindowState(QtCore.Qt.WindowMinimized)
 
     def toggle_show(self):
-        window_animation = config_toml["Settings"]["window_animation"]
-        self.setWindowState(QtCore.Qt.WindowNoState)
-        if config["Settings"]["hide_from_taskbar"]:
-            self.show()
-        if window_animation == "Fade":
-            for i in range(0, round(config["Settings"]["opacity"] * 100), 5):
-                self.setWindowOpacity(i / 100)
-                time.sleep(0.005)
-            self.setWindowOpacity(config["Settings"]["opacity"])
-        self.activateWindow()
-        if hasattr(self, "notes_textbox"):
-            try:
-                self.notes_textbox.setFocus()
-            except:
+        if self.windowState() == QtCore.Qt.WindowMinimized:
+            window_animation = config_toml["Settings"]["window_animation"]
+            self.setWindowState(QtCore.Qt.WindowNoState)
+            if config["Settings"]["hide_from_taskbar"]:
+                self.show()
+            if window_animation == "Fade":
+                for i in range(0, round(config["Settings"]["opacity"] * 100), 5):
+                    self.setWindowOpacity(i / 100)
+                    time.sleep(0.005)
+                self.setWindowOpacity(config["Settings"]["opacity"])
+            self.activateWindow()
+            if hasattr(self, "notes_textbox"):
+                try:
+                    self.notes_textbox.setFocus()
+                except:
+                    self.search_bar.setFocus()
+            else:
                 self.search_bar.setFocus()
-        else:
-            self.search_bar.setFocus()
-        if platform.system() == "Windows":
-            self.tabtip_process = subprocess.Popen("C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe", shell=True)
+            if platform.system() == "Windows":
+                self.tabtip_process = subprocess.Popen("C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe", shell=True)
 
     def tray_toggle_window(self, reason):
         if reason == QSystemTrayIcon.Trigger:
@@ -1237,6 +1239,7 @@ class MainWindow(QtWidgets.QWidget):
             text = ""
         self.button_selected = False
         self.remove_buttons()
+        self.revert_notes_button()
         narrowed_list = narrow_down(text)
         if is_calculation(self.search_bar.text()) and config_toml["Settings"]["search_calculator"]:
             new_text = narrowed_list[0]
@@ -1299,6 +1302,9 @@ class MainWindow(QtWidgets.QWidget):
             border: 2px solid """ + theme_toml[theme_style]["foreground"] + """;
             border-radius: 10px;
             padding: 8px;
+        }
+        QTextBrowser a {
+            color: """ + theme_toml[theme_style]["foreground2"] + """;
         }
         """)
         self.markdown_preview.setOpenExternalLinks(True)
@@ -1404,32 +1410,48 @@ class MainWindow(QtWidgets.QWidget):
                 self.button_selected = False
                 self.buttons_layout.itemAt(self.current_button_index).widget().click()
             else:
-                program = narrow_down(self.search_bar.text())[0]
-                if self.search_bar.text() == "exit":
-                    os._exit(0)
-                elif self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == core_config["Settings"]["no_results_text"]:
-                    self.search_bar.clear()
-                elif program.endswith(".kaboom"):
-                    if program == "Open kaboom Settings.kaboom":
-                        self.search_bar.clear()
-                        self.open_settings()
-                    elif program == "Reset kaboom Settings.kaboom":
-                        self.search_bar.clear()
-                        self.reset_settings_confirmation()
-                    elif program == "Exit kaboom.kaboom":
-                        self.exit_program()
-                    elif program == "Open kaboom Notes.kaboom":
-                        self.open_notes()
+                if (is_calculation(self.search_bar.text()) and config_toml["Settings"]["search_calculator"]) or conversion(self.search_bar.text()) is not None:
+                    self.copy_calculation_to_clipboard(narrow_down(self.search_bar.text())[0])
                 else:
-                    determine_program(program)
-                    self.search_bar.clear()
-                    self.toggle_window()
+                    program = narrow_down(self.search_bar.text())[0]
+                    if self.search_bar.text() == "exit":
+                        os._exit(0)
+                    elif self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == core_config["Settings"]["no_results_text"]:
+                        self.search_bar.clear()
+                    elif program.endswith(".kaboom"):
+                        if program == "Open kaboom Settings.kaboom":
+                            self.search_bar.clear()
+                            self.open_settings()
+                        elif program == "Reset kaboom Settings.kaboom":
+                            self.search_bar.clear()
+                            self.reset_settings_confirmation()
+                        elif program == "Exit kaboom.kaboom":
+                            self.exit_program()
+                        elif program == "Open kaboom Notes.kaboom":
+                            self.open_notes()
+                    else:
+                        determine_program(program)
+                        self.search_bar.clear()
+                        self.toggle_window()
 
     @QtCore.Slot()
     def update_markdown_preview(self):
         markdown_text = self.notes_textbox.toPlainText()
         html = markdown(markdown_text)
-        self.markdown_preview.setHtml(html)
+        
+        foreground2_color = theme_toml[theme_style]["foreground2"]
+
+        # Add a style tag to the HTML content
+        styled_html = f"""
+        <style>
+        a {{
+            color: {foreground2_color};
+        }}
+        </style>
+        {html}
+        """
+
+        self.markdown_preview.setHtml(styled_html)
 
     def load_notes(self) -> str:
         notes_path = get_config()
@@ -1536,6 +1558,7 @@ if __name__ == "__main__":
     show_action.triggered.connect(widget.toggle_window)
     settings_action.triggered.connect(widget.open_settings)
     notes_action.triggered.connect(widget.open_notes)
+    notes_action.triggered.connect(widget.toggle_show)
     reset_position_action.triggered.connect(widget.center_window)
     exit_action.triggered.connect(os._exit)
 
