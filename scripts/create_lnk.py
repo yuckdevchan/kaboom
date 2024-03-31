@@ -1,11 +1,25 @@
-import pylnk3
-from utils import current_user
+import winshell
+from os_tools import current_user
 
-def create_lnk(path_to_python, path_to_script, path_to_lnk):
-    lnk = pylnk3.Lnk()
-    lnk.target = path_to_python
-    lnk.arguments = path_to_script
-    lnk.save(path_to_lnk)
+def create_lnk(target, arguments, link, icon):
+    try:
+        winshell.CreateShortcut(
+            Path=link,
+            Target=target,
+            Arguments=f'"{arguments}"',
+            Icon=(icon, 0),
+            Description="Shortcut to my script"
+        )
+        print(f"Successfully Created shortcut: C:\\Users\\{current_user()}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\kaboom.lnk")
+    except Exception as e:
+        print("Failed to create shortcut:", e)
 
-if __name__ == "__main__":
-    create_lnk("python.exe", f"C:\\Users\\{current_user()}\\Documents\\kaboom-1\\main.py", "kaboom.lnk")
+kaboom_path = f"C:\\Program Files\\kaboom"
+script_path = "C:\\Program Files\\kaboom\\main.py"
+icon_path = f"{kaboom_path}/images/logo-light.ico"
+create_lnk(
+    "C:\\Users\\ethan\\AppData\\Local\\Programs\\Python\\Python312\\pythonw.exe",
+    script_path,
+    f"C:\\Users\\{current_user()}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\kaboom.lnk",
+    icon_path
+)

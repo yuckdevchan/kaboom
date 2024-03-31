@@ -32,6 +32,7 @@ steam_path = "C:\\Program Files (x86)\\Steam"
 bsman_path = "C:\\Users\\<CURRENT_USER>\\BSManager\\BSInstances"
 search_start_menu = true
 search_calculator = true
+search_unit_conversion = true
 search_web = true
 search_steam = true
 search_bsman = true

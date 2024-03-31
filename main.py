@@ -1,17 +1,18 @@
-import sys, toml, os, platform, subprocess, signal, psutil, PySide6, time
-from PySide6.QtWidgets import QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QFileIconProvider
-from PySide6.QtCore import Qt, Slot, QTimer, QUrl, QFileInfo
-from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont
+import sys, toml, os, platform, subprocess, signal, psutil, PySide6, time, threading
+from PySide6.QtWidgets import QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QFileIconProvider, QTextBrowser, QTextEdit
+from PySide6.QtCore import Qt, Slot, QTimer, QUrl, QFileInfo, QThreadPool, QRunnable, QObject, Signal
+from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont, QTextCursor
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6 import QtCore, QtWidgets, QtGui
 from qtacrylic import WindowEffect
+from markdown import markdown
 from pathlib import Path
 
 if platform.system() == "Windows":
-    import keyboard, wmi, win32com, win32gui, win32ui, pyautogui
+    import keyboard, wmi, win32com, win32gui, win32ui
 
-from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut
-from config_tools import get_config, get_core_config
+from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut, conversion
+from scripts.config_tools import get_config, get_core_config, get_program_directory
 
 class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
@@ -73,7 +74,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.first_tab_layout.addWidget(self.theme_style_label)
 
         self.theme_style = QtWidgets.QButtonGroup(self)
-        with open(Path("themes", f"{config['Settings']['theme']}.toml"), "r") as theme_file:
+        with open(Path(f"{get_program_directory()}/themes", f"{config['Settings']['theme']}.toml"), "r") as theme_file:
             theme = toml.load(theme_file)
             theme_styles = list(theme.keys())
             for i in range(len(theme_styles)):
@@ -195,7 +196,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.fifth_tab_layout.addWidget(self.bgm_file_label)
 
         self.bgm_file_combobox = QtWidgets.QComboBox(self)
-        self.bgm_file_combobox.addItems([file for file in os.listdir("sounds") if file.endswith(".mp3") or file.endswith(".wav")])
+        self.bgm_file_combobox.addItems([file for file in os.listdir(f"{get_program_directory()}/sounds") if file.endswith(".mp3") or file.endswith(".wav")])
         self.bgm_file_combobox.setCurrentText(config["Settings"]["bgm_file"])
         self.bgm_file_combobox.currentTextChanged.connect(self.change_bgm_file)
         self.fifth_tab_layout.addWidget(self.bgm_file_combobox)
@@ -218,7 +219,7 @@ class SettingsPopup2(QtWidgets.QDialog):
             theme = "dark"
         else:
             theme = "light"
-        self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path(f"images/logo-{theme}.svg"))))
+        self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path(f"{get_program_directory()}/images/logo-{theme}.svg"))))
         self.sixth_tab_layout.addWidget(self.kaboom_logo)
 
         self.kaboom_info_title = QtWidgets.QLabel(f"{core_config['Settings']['program_title']} Info:", self)
@@ -262,10 +263,25 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.search_calculator_switch.stateChanged.connect(self.change_search_calculator)
         self.eighth_tab_layout.addWidget(self.search_calculator_switch)
 
+        self.search_unit_conversion_switch = QtWidgets.QCheckBox("Unit Conversions", self)
+        self.search_unit_conversion_switch.setChecked(config_toml["Settings"]["search_unit_conversion"])
+        self.search_unit_conversion_switch.stateChanged.connect(self.change_search_unit_conversion)
+        self.eighth_tab_layout.addWidget(self.search_unit_conversion_switch)
+
         self.filesystem_search_switch = QtWidgets.QCheckBox("Filesystem Search", self)
         self.filesystem_search_switch.setChecked(config_toml["Settings"]["search_filesystem"])
         self.filesystem_search_switch.stateChanged.connect(self.change_search_filesystem)
         self.eighth_tab_layout.addWidget(self.filesystem_search_switch)
+
+        self.search_steam_switch = QtWidgets.QCheckBox("Steam Game Search", self)
+        self.search_steam_switch.setChecked(config_toml["Settings"]["search_steam"])
+        self.search_steam_switch.stateChanged.connect(self.change_search_steam)
+        self.eighth_tab_layout.addWidget(self.search_steam_switch)
+
+        self.search_bsman_switch = QtWidgets.QCheckBox("BSManager Instance Search", self)
+        self.search_bsman_switch.setChecked(config_toml["Settings"]["search_bsman"])
+        self.search_bsman_switch.stateChanged.connect(self.change_search_bsman)
+        self.eighth_tab_layout.addWidget(self.search_bsman_switch)
 
         self.search_web_switch = QtWidgets.QCheckBox("Web Search", self)
         self.search_web_switch.setChecked(config_toml["Settings"]["search_web"])
@@ -282,16 +298,6 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.default_search_engine_combobox.setCurrentText(config_toml["Settings"]["default_search_engine"].title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
         self.default_search_engine_combobox.currentTextChanged.connect(self.change_default_search_engine)
         self.eighth_tab_layout.addWidget(self.default_search_engine_combobox)
-
-        self.search_steam_switch = QtWidgets.QCheckBox("Steam Game Search", self)
-        self.search_steam_switch.setChecked(config_toml["Settings"]["search_steam"])
-        self.search_steam_switch.stateChanged.connect(self.change_search_steam)
-        self.eighth_tab_layout.addWidget(self.search_steam_switch)
-
-        self.search_bsman_switch = QtWidgets.QCheckBox("BSManager Instance Search", self)
-        self.search_bsman_switch.setChecked(config_toml["Settings"]["search_bsman"])
-        self.search_bsman_switch.stateChanged.connect(self.change_search_bsman)
-        self.eighth_tab_layout.addWidget(self.search_bsman_switch)
 
         if platform.system() == "Windows":
             manufacturer_and_model = f"{wmi.WMI().Win32_ComputerSystem()[0].Manufacturer} - {wmi.WMI().Win32_ComputerSystem()[0].Model}"
@@ -394,56 +400,60 @@ Qt Version: {PySide6.QtCore.__version__}
 
     def closeEvent(self, event):
         self.parent().search_bar.setFocus()
+        global theme_toml
+        global config_toml
+        config_toml = toml.load(open(get_config(), 'r'))
+        theme_toml = toml.load(open(Path(f"{get_program_directory()}/themes", f"{config_toml['Settings']['theme']}.toml"), "r"))
 
     def showEvent(self, event):
         with open(get_config(), 'r') as file:
             config = toml.load(file)
 
-    def change_theme(self, state):
-        with open(get_config(), 'r+') as file:
-            config = toml.load(file)
-            if state == 0:
-                config['Settings']['dark_mode'] = False
-                self.setStyleSheet(f"background-color: {config['Setting']['light_mode_bg']}; color: {config['Settings']['light_mode_text']};")
-                self.parent().setStyleSheet(f"background-color: {config['Settings']['light_mode_bg']}; color: {config['Settings']['light_mode_text']};")
-                self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
-                self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
-                self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
-                self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
-                self.parent().search_bar.setStyleSheet("""
-    QLineEdit {
-        border: 2px solid """ + config["Settings"]["light_mode_text"] + """;
-        border-radius: 10px;
-        padding: 0 8px;
-        selection-background-color: darkgray;
-    }
-""")
-            elif state == 2:
-                config['Settings']['dark_mode'] = True
-                self.setStyleSheet(f"background-color: {config['Settings']['dark_mode_bg']}; color: {config['Settings']['dark_mode_text']};")
-                self.parent().setStyleSheet(f"background-color: {config['Settings']['dark_mode_bg']}; color: {config['Settings']['dark_mode_text']};")
-                self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
-                self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
-                self.parent().clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
-                self.parent().hide_button.setIcon(QIcon("images/hide-dark.svg"))
-                self.parent().search_bar.setStyleSheet("""
-    QLineEdit {
-        border: 2px solid """ + config["Settings"]["dark_mode_text"] + """;
-        border-radius: 10px;
-        padding: 0 8px;
-        selection-background-color: darkgray;
-    }
-""")
-            file.seek(0)
-            toml.dump(config, file)
-            file.truncate()
+#     def change_theme(self, state):
+#         with open(get_config(), 'r+') as file:
+#             config = toml.load(file)
+#             if state == 0:
+#                 config['Settings']['dark_mode'] = False
+#                 self.setStyleSheet(f"background-color: {config['Setting']['light_mode_bg']}; color: {config['Settings']['light_mode_text']};")
+#                 self.parent().setStyleSheet(f"background-color: {config['Settings']['light_mode_bg']}; color: {config['Settings']['light_mode_text']};")
+#                 self.parent().settings_button.setIcon(QIcon(f"{get_program_directory()}/images/settings-light.svg"))
+#                 self.parent().exit_button.setIcon(QIcon(f"{get_program_directory()}/images/exit-light.svg"))
+#                 self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
+#                 self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
+#                 self.parent().search_bar.setStyleSheet("""
+#     QLineEdit {
+#         border: 2px solid """ + config["Settings"]["light_mode_text"] + """;
+#         border-radius: 10px;
+#         padding: 0 8px;
+#         selection-background-color: darkgray;
+#     }
+# """)
+#             elif state == 2:
+#                 config['Settings']['dark_mode'] = True
+#                 self.setStyleSheet(f"background-color: {config['Settings']['dark_mode_bg']}; color: {config['Settings']['dark_mode_text']};")
+#                 self.parent().setStyleSheet(f"background-color: {config['Settings']['dark_mode_bg']}; color: {config['Settings']['dark_mode_text']};")
+#                 self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
+#                 self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
+#                 self.parent().clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
+#                 self.parent().hide_button.setIcon(QIcon("images/hide-dark.svg"))
+#                 self.parent().search_bar.setStyleSheet("""
+#     QLineEdit {
+#         border: 2px solid """ + config["Settings"]["dark_mode_text"] + """;
+#         border-radius: 10px;
+#         padding: 0 8px;
+#         selection-background-color: darkgray;
+#     }
+# """)
+#             file.seek(0)
+#             toml.dump(config, file)
+#             file.truncate()
 
     def change_to_dark_icons(self, fg_colour):
-        self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path("images/logo-dark.svg"))))
-        self.parent().settings_button.setIcon(QIcon("images/settings-dark.svg"))
-        self.parent().exit_button.setIcon(QIcon("images/exit-dark.svg"))
-        self.parent().hide_button.setIcon(QIcon("images/hide-dark.svg"))
-        self.parent().clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
+        self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path(f"{get_program_directory()}/images/logo-dark.svg"))))
+        self.parent().settings_button.setIcon(QIcon(f"{get_program_directory()}/images/settings-dark.svg"))
+        self.parent().exit_button.setIcon(QIcon(f"{get_program_directory()}/images/exit-dark.svg"))
+        self.parent().hide_button.setIcon(QIcon(f"{get_program_directory()}/images/hide-dark.svg"))
+        self.parent().clear_text_button.setIcon(QIcon(f"{get_program_directory()}/images/clear-dark.svg"))
         self.parent().search_bar.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + fg_colour + """;
@@ -454,11 +464,11 @@ Qt Version: {PySide6.QtCore.__version__}
 """)
 
     def change_to_light_icons(self, fg_colour):
-        self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path("images/logo-light.svg"))))
-        self.parent().settings_button.setIcon(QIcon("images/settings-light.svg"))
-        self.parent().exit_button.setIcon(QIcon("images/exit-light.svg"))
-        self.parent().hide_button.setIcon(QIcon("images/hide-light.svg"))
-        self.parent().clear_text_button.setIcon(QIcon("images/clear-light.svg"))
+        self.kaboom_logo.setPixmap(QtGui.QPixmap(str(Path(f"{get_program_directory()}/images/logo-light.svg"))))
+        self.parent().settings_button.setIcon(QIcon(f"{get_program_directory()}/images/settings-light.svg"))
+        self.parent().exit_button.setIcon(QIcon(f"{get_program_directory()}/images/exit-light.svg"))
+        self.parent().hide_button.setIcon(QIcon(f"{get_program_directory()}/images/hide-light.svg"))
+        self.parent().clear_text_button.setIcon(QIcon(f"{get_program_directory()}/images/clear-light.svg"))
         # change search bar stylesheet
         self.parent().search_bar.setStyleSheet("""
     QLineEdit {
@@ -470,7 +480,7 @@ Qt Version: {PySide6.QtCore.__version__}
 """)
 
     def change_theme2(self, state):
-        with open(Path("themes", f"{state}.toml"), "r") as file:
+        with open(Path(f"{get_program_directory()}/themes", f"{state}.toml"), "r") as file:
             theme = toml.load(file)
             theme_toml = theme
             # if theme styles are different then change the theme style to the first one
@@ -493,6 +503,10 @@ Qt Version: {PySide6.QtCore.__version__}
             dark = theme[theme_style]["dark"]
             self.setStyleSheet(f"background-color: {bg_colour}; color: {text_colour};")
             self.parent().setStyleSheet(f"background-color: {bg_colour}; color: {text_colour};")
+            # change stylesheet of buttons in buttons_layout with hover making it foreground 2
+            button_qss = "QPushButton { border: none; text-align: left; } QPushButton:hover { background-color: " + theme_toml[theme_style]["foreground2"] + "; } QPushButton:pressed { background-color: #44475A; }"
+            for button in self.parent().buttons_layout.children():
+                button.setStyleSheet(button_qss)
             if dark:
                 self.change_to_dark_icons(fg_colour=theme[theme_style]["foreground"])
             else:
@@ -708,6 +722,17 @@ Qt Version: {PySide6.QtCore.__version__}
             toml.dump(config, file)
             file.truncate()
 
+    def change_search_unit_conversion(self, state):
+        with open(get_config(), 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                config['Settings']['search_unit_conversion'] = False
+            elif state == 2:
+                config['Settings']['search_unit_conversion'] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
     def change_search_web(self, state):
         with open(get_config(), 'r+') as file:
             config = toml.load(file)
@@ -799,10 +824,26 @@ Qt Version: {PySide6.QtCore.__version__}
     def edit_toml(self):
         os.system("start config.toml")
 
+class IconLoaderSignals(QtCore.QObject):
+    finished = QtCore.Signal()
+
+class IconLoader(QRunnable):
+    def __init__(self, shortcut):
+        super().__init__()
+        self.shortcut = shortcut
+        self.signals = IconLoaderSignals()
+
+    @Slot()
+    def run(self):
+        provider = QFileIconProvider()
+        info = QFileInfo(self.shortcut)
+        icon = QIcon(provider.icon(info))
+        self.signals.finished.emit()
+
 class MainWindow(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-        with open(Path("themes", f"{config_toml['Settings']['theme']}.toml"), "r") as theme_file:
+        with open(Path(get_program_directory(), "themes", f"{config_toml['Settings']['theme']}.toml"), "r") as theme_file:
             global theme_toml
             theme_toml = toml.load(theme_file)
             global theme_style
@@ -823,7 +864,6 @@ class MainWindow(QtWidgets.QWidget):
             if config_toml["Settings"]["arrow_key_navigation"]:
                 keyboard.add_hotkey("down", self.down_pressed)
                 keyboard.add_hotkey("up", self.up_pressed)
-                keyboard.add_hotkey("enter", self.on_enter_pressed)
             keyboard.add_hotkey("ctrl + x", self.on_yank_key_pressed)
             keyboard.add_hotkey("ctrl + y", self.on_yank_key_pressed)
 
@@ -860,6 +900,10 @@ class MainWindow(QtWidgets.QWidget):
         self.settings_button.setFlat(True)
         self.settings_button.setStyleSheet(self.button_style)
         self.settings_button.setToolTip("Preferences")
+        self.notes_button = QtWidgets.QPushButton(self)
+        self.notes_button.setFlat(True)
+        self.notes_button.setStyleSheet(self.button_style)
+        self.notes_button.setToolTip("Notes")
         self.exit_button = QtWidgets.QPushButton(self)
         self.exit_button.setToolTip(f"Exit {core_config['Settings']['program_title']}")
         self.exit_button.setFlat(True)
@@ -878,20 +922,23 @@ class MainWindow(QtWidgets.QWidget):
         self.exit_button.clicked.connect(self.exit_program)
 
         if dark:
-            self.settings_button.setIcon(QIcon("images/settings-dark.svg"))
-            self.exit_button.setIcon(QIcon("images/exit-dark.svg"))
-            self.hide_button.setIcon(QIcon("images/hide-dark.svg"))
-            self.clear_text_button.setIcon(QIcon("images/clear-dark.svg"))
+            self.settings_button.setIcon(QIcon(f"{get_program_directory()}/images/settings-dark.svg"))
+            self.notes_button.setIcon(QIcon(f"{get_program_directory()}/images/notes-dark.svg"))
+            self.exit_button.setIcon(QIcon(f"{get_program_directory()}/images/exit-dark.svg"))
+            self.hide_button.setIcon(QIcon(f"{get_program_directory()}/images/hide-dark.svg"))
+            self.clear_text_button.setIcon(QIcon(f"{get_program_directory()}/images/clear-dark.svg"))
         else:
-            self.settings_button.setIcon(QIcon("images/settings-light.svg"))
-            self.exit_button.setIcon(QIcon("images/exit-light.svg"))
-            self.hide_button.setIcon(QIcon("images/hide-light.svg"))
-            self.clear_text_button.setIcon(QIcon("images/clear-light.svg"))
+            self.settings_button.setIcon(QIcon(f"{get_program_directory()}/images/settings-light.svg"))
+            self.notes_button.setIcon(QIcon(f"{get_program_directory()}/images/notes.svg"))
+            self.exit_button.setIcon(QIcon(f"{get_program_directory()}/images/exit-light.svg"))
+            self.hide_button.setIcon(QIcon(f"{get_program_directory()}/images/hide-light.svg"))
+            self.clear_text_button.setIcon(QIcon(f"{get_program_directory()}/images/clear-light.svg"))
 
         self.textbox_layout.addWidget(self.search_bar)
         self.textbox_layout.addWidget(self.clear_text_button)
         self.textbox_layout.addWidget(self.exit_button)
         self.textbox_layout.addWidget(self.hide_button)
+        self.textbox_layout.addWidget(self.notes_button)
         self.textbox_layout.addWidget(self.settings_button)
 
         self.buttons_layout = QtWidgets.QVBoxLayout()
@@ -958,24 +1005,28 @@ class MainWindow(QtWidgets.QWidget):
 
         self.search_bar.textChanged.connect(self.on_text_changed)
         self.search_bar.returnPressed.connect(self.on_enter_pressed)
+        self.notes_button.clicked.connect(self.open_notes)
         self.settings_button.clicked.connect(self.open_settings)
 
-        program_list = list_programs()[:max_results]
-        program_list = sorted([program.rsplit("\\")[-1] for program in program_list])
-        text = ""
-        for i in range(len(program_list)):
-            # text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
-            # add button
-            self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", ""), self)
-            self.button.setToolTip("Click to launch")
-            global button_qss
-            button_qss = "QPushButton { border: none; text-align: left; } QPushButton:hover { background-color: " + theme_toml[theme_style]["foreground2"] + "; } QPushButton:pressed { background-color: #44475A; }"
-            self.button.setStyleSheet(button_qss)
-            if config["Settings"]["program_icons"]:
-                self.button.setIcon(self.get_ico_from_shortcut(str(program_name_to_shortcut(program_list[i]))))
-            self.button.clicked.connect(lambda checked=False, text=program_list[i]: self.on_button_clicked(text))
-            self.buttons_layout.addWidget(self.button)
-        # self.change_text(text)
+        if config_toml["Settings"]["search_start_menu"]:
+            program_list = list_programs()[:max_results]
+            program_list = sorted([program.rsplit("\\")[-1] for program in program_list])
+            text = ""
+            for i in range(len(program_list)):
+                # text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
+                # add button
+                self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", ""), self)
+                self.button.setToolTip("Click to launch")
+                global button_qss
+                button_qss = "QPushButton { border: none; text-align: left; } QPushButton:hover { background-color: " + theme_toml[theme_style]["foreground2"] + "; } QPushButton:pressed { background-color: #44475A; }"
+                self.button.setStyleSheet(button_qss)
+                if config["Settings"]["program_icons"]:
+                    loader = IconLoader(str(program_name_to_shortcut(program_list[i])))
+                    loader.signals.finished.connect(lambda icon, button=self.button: self.set_icon(icon, button))
+                    QThreadPool.globalInstance().start(loader)
+                self.button.clicked.connect(lambda checked=False, text=program_list[i]: self.on_button_clicked(text))
+                self.buttons_layout.addWidget(self.button)
+            # self.change_text(text)
 
         self.m_drag = False
         self.m_DragPosition = QtCore.QPoint()
@@ -987,6 +1038,9 @@ class MainWindow(QtWidgets.QWidget):
             if platform.system() == "Windows":
                 self.windowFX = WindowEffect()
                 self.windowFX.setAeroEffect(self.winId())
+
+    def set_icon(self, icon, button):
+        button.setIcon(icon)
 
     def get_ico_from_shortcut(self, shortcut):
         provider = QFileIconProvider()
@@ -1006,19 +1060,11 @@ class MainWindow(QtWidgets.QWidget):
                 self.search_bar.clear()
                 self.reset_settings_confirmation()
             elif program == "Exit kaboom.kaboom":
-                os._exit(0)
+                self.exit_program()
         else:
             determine_program(program)
             self.search_bar.clear()
             self.toggle_window()
-
-    def update_font_size(self):
-        # volume = self.player.audio_get_volume()
-        # print(int(volume))
-        # font = self.textbox.font()
-        # font.setPointSize(volume)
-        # self.textbox.setFont(font)
-        pass
 
     def play_audio(self):
         self.player = vlc.MediaPlayer(str(Path("sounds", config["Settings"]["bgm_file"])))
@@ -1048,31 +1094,41 @@ class MainWindow(QtWidgets.QWidget):
             config_toml = toml.load(file)
         if config["Settings"]["auto_pause_bgm"] and config["Settings"]["bgm"]:
             self.player.pause()
-        window_animation = config["Settings"]["window_animation"]
         if not self.windowState() == QtCore.Qt.WindowMinimized:
-            if window_animation == "Fade":
-                for i in range(round(config["Settings"]["opacity"] * 100), 0, -5):
-                    self.setWindowOpacity(i / 100)
-                    time.sleep(0.005)
-            if config["Settings"]["hide_from_taskbar"]:
-                self.hide()
-            self.setWindowState(QtCore.Qt.WindowMinimized)
+            self.toggle_hide()
         else:
-            self.setWindowState(QtCore.Qt.WindowNoState)
-            if config["Settings"]["hide_from_taskbar"]:
-                self.show()
-            if window_animation == "Fade":
-                for i in range(0, round(config["Settings"]["opacity"] * 100), 5):
-                    self.setWindowOpacity(i / 100)
-                    time.sleep(0.005)
-                self.setWindowOpacity(config["Settings"]["opacity"])
-            self.activateWindow()
-            # if platform.system() == "Windows":
-                # win32gui.SetForegroundWindow(self.winId())
-            # pyautogui.hotkey('alt', 'tab')
+            self.toggle_show()
+
+    def toggle_hide(self):
+        window_animation = config_toml["Settings"]["window_animation"]
+        if window_animation == "Fade":
+            for i in range(round(config["Settings"]["opacity"] * 100), 0, -5):
+                self.setWindowOpacity(i / 100)
+                time.sleep(0.005)
+        if config["Settings"]["hide_from_taskbar"]:
+            self.hide()
+        self.setWindowState(QtCore.Qt.WindowMinimized)
+
+    def toggle_show(self):
+        window_animation = config_toml["Settings"]["window_animation"]
+        self.setWindowState(QtCore.Qt.WindowNoState)
+        if config["Settings"]["hide_from_taskbar"]:
+            self.show()
+        if window_animation == "Fade":
+            for i in range(0, round(config["Settings"]["opacity"] * 100), 5):
+                self.setWindowOpacity(i / 100)
+                time.sleep(0.005)
+            self.setWindowOpacity(config["Settings"]["opacity"])
+        self.activateWindow()
+        if hasattr(self, "notes_textbox"):
+            try:
+                self.notes_textbox.setFocus()
+            except:
+                self.search_bar.setFocus()
+        else:
             self.search_bar.setFocus()
-            if platform.system() == "Windows":
-                self.tabtip_process = subprocess.Popen("C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe", shell=True)
+        if platform.system() == "Windows":
+            self.tabtip_process = subprocess.Popen("C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe", shell=True)
 
     def tray_toggle_window(self, reason):
         if reason == QSystemTrayIcon.Trigger:
@@ -1082,6 +1138,7 @@ class MainWindow(QtWidgets.QWidget):
         widget.move((QtWidgets.QApplication.primaryScreen().size().width() - widget.width()) / 2, (QtWidgets.QApplication.primaryScreen().size().height() - widget.height()) / 2)
 
     def exit_program(self):
+        tray.hide()
         os._exit(0)
 
     def escape_pressed(self):
@@ -1105,6 +1162,7 @@ class MainWindow(QtWidgets.QWidget):
             # Change the style of the new active button
             self.buttons_layout.itemAt(self.current_button_index).widget().setStyleSheet("background-color: " + theme_toml[theme_style]["foreground2"] + ";" + "border: none; text-align: left;")
             self.button_selected = True
+            self.search_bar.setFocus()
 
     def up_pressed(self):
         if widget.isVisible():
@@ -1123,6 +1181,7 @@ class MainWindow(QtWidgets.QWidget):
             # Change the style of the new active button
             self.buttons_layout.itemAt(self.current_button_index).widget().setStyleSheet("background-color: " + theme_toml[theme_style]["foreground2"] + ";" + "border: none; text-align: left;")
             self.button_selected = True
+            self.search_bar.setFocus()
 
     def open_settings(self):
         if not widget.isVisible():
@@ -1155,10 +1214,16 @@ class MainWindow(QtWidgets.QWidget):
         return mask
 
     def remove_buttons(self):
-        for i in reversed(range(self.buttons_layout.count())):
-            widget = self.buttons_layout.itemAt(i).widget()
-            if widget is not None:
-                widget.deleteLater()
+        for layout_name in ['buttons_layout', 'notes_layout', 'notes_buttons_layout']:
+            try:
+                layout = getattr(self, layout_name)
+                if layout is not None:
+                    for i in reversed(range(layout.count())):
+                        widget = layout.itemAt(i).widget()
+                        if widget is not None:
+                            widget.deleteLater()
+            except AttributeError:
+                pass
 
     def copy_calculation_to_clipboard(self, text):
         clipboard = QtWidgets.QApplication.clipboard()
@@ -1168,10 +1233,12 @@ class MainWindow(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def on_text_changed(self, text):
+        if type(text) == bool:
+            text = ""
         self.button_selected = False
         self.remove_buttons()
         narrowed_list = narrow_down(text)
-        if is_calculation(self.search_bar.text()):
+        if is_calculation(self.search_bar.text()) and config_toml["Settings"]["search_calculator"]:
             new_text = narrowed_list[0]
             if ("life" in self.search_bar.text() or "universe" in self.search_bar.text() or "everything" in self.search_bar.text()) and ("*" in self.search_bar.text() or "+" in self.search_bar.text() or "-" in self.search_bar.text() or "/" in self.search_bar.text()):
                 # self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 4}px;")
@@ -1191,18 +1258,135 @@ class MainWindow(QtWidgets.QWidget):
             self.button.setStyleSheet(f"border: none; text-align: left; font-size: {config['Settings']['font_size'] * 4}px;")
             self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(new_text.strip("=")))
             self.buttons_layout.addWidget(self.button)
+        elif not conversion(text) == None and config_toml["Settings"]["search_unit_conversion"]:
+            new_text = str(conversion(text))
+            self.button = QtWidgets.QPushButton(new_text, self)
+            self.button.setStyleSheet(f"border: none; text-align: left; font-size: {config['Settings']['font_size'] * 4}px;")
+            self.button.setToolTip("Click to copy to clipboard.")
+            self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(new_text))
+            self.buttons_layout.addWidget(self.button)
         else:
-            new_text = ""
-            for i in range(len(narrowed_list)):
-                # new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
-                self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", "").rsplit("\\")[-1], self)
-                self.button.setToolTip("Click to launch")
-                self.button.setStyleSheet(button_qss)
-                self.button.clicked.connect(lambda checked=False, text=narrowed_list[i]: self.on_button_clicked(text))
-                if config["Settings"]["program_icons"]:
-                    self.button.setIcon(self.get_ico_from_shortcut(str(program_name_to_shortcut(narrowed_list[i]))))
-                self.buttons_layout.addWidget(self.button)
+            if config_toml["Settings"]["search_start_menu"]:
+                new_text = ""
+                for i in range(len(narrowed_list)):
+                    # new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
+                    self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", "").rsplit("\\")[-1], self)
+                    self.button.setToolTip("Click to launch")
+                    self.button.setStyleSheet(button_qss)
+                    self.button.clicked.connect(lambda checked=False, text=narrowed_list[i]: self.on_button_clicked(text))
+                    if config["Settings"]["program_icons"]:
+                        self.button.setIcon(self.get_ico_from_shortcut(str(program_name_to_shortcut(narrowed_list[i]))))
+                    self.buttons_layout.addWidget(self.button)
 
+    def open_notes(self):
+        self.search_bar.clear()
+        self.remove_buttons()
+        self.notes_textbox = QTextEdit(self)
+        self.notes_textbox.setPlaceholderText("Type your notes here...")
+        self.notes_textbox.setAcceptRichText(False)
+        self.notes_textbox.setPlainText(self.load_notes())
+        self.notes_textbox.setStyleSheet("""
+        QTextEdit {
+            border: 2px solid """ + theme_toml[theme_style]["foreground"] + """;
+            border-radius: 10px;
+            padding: 8px;
+        }
+        """)
+
+        self.markdown_preview = QTextBrowser(self)
+        self.markdown_preview.setStyleSheet("""
+        QTextBrowser {
+            border: 2px solid """ + theme_toml[theme_style]["foreground"] + """;
+            border-radius: 10px;
+            padding: 8px;
+        }
+        """)
+        self.markdown_preview.setOpenExternalLinks(True)
+        self.markdown_preview.setPlaceholderText("Your Markdown preview will appear here...")
+        self.update_markdown_preview()
+
+        self.notes_textbox.textChanged.connect(self.update_markdown_preview)
+
+        # Create a horizontal layout and add the text box and preview to it
+        self.notes_layout = QtWidgets.QHBoxLayout()
+        self.notes_layout.addWidget(self.notes_textbox)
+        self.notes_layout.addWidget(self.markdown_preview)
+
+        # Add the horizontal layout to the main layout
+        self.buttons_layout.addLayout(self.notes_layout)
+
+        self.notes_textbox.setFocus()
+
+        self.notes_confirm_button = QtWidgets.QPushButton("Save Notes", self)
+        self.notes_confirm_button.setStyleSheet("""
+        QPushButton {{
+            border: 2px solid {};
+            border-radius: 10px;
+            padding: 5px;
+        }}
+        QPushButton:hover {{
+            background-color: {};
+        }}
+        QPushButton:pressed {{
+            background-color: {};
+        }}
+        """.format(theme_toml[theme_style]['foreground'], theme_toml[theme_style]['foreground2'], theme_toml[theme_style]['foreground3']))
+        self.notes_confirm_button.clicked.connect(self.save_notes)
+
+        self.notes_confirm_and_exit_button = QtWidgets.QPushButton("Save Notes and Exit", self)
+        self.notes_confirm_and_exit_button.setStyleSheet("""
+        QPushButton {{
+            border: 2px solid {};
+            border-radius: 10px;
+            padding: 5px;
+        }}
+        QPushButton:hover {{
+            background-color: {};
+        }}
+        QPushButton:pressed {{
+            background-color: {};
+        }}
+        """.format(theme_toml[theme_style]['foreground'], theme_toml[theme_style]['foreground2'], theme_toml[theme_style]['foreground3']))
+        self.notes_confirm_and_exit_button.clicked.connect(self.save_notes)
+        self.notes_confirm_and_exit_button.clicked.connect(self.toggle_window)
+        self.notes_confirm_and_exit_button.clicked.connect(self.remove_buttons)
+        self.notes_confirm_and_exit_button.clicked.connect(self.on_text_changed)
+        self.notes_confirm_and_exit_button.clicked.connect(self.revert_notes_button)
+
+        self.notes_cancel_button = QtWidgets.QPushButton("Cancel", self)
+        self.notes_cancel_button.setStyleSheet("""
+        QPushButton {{
+            border: 2px solid {};
+            border-radius: 10px;
+            padding: 5px;
+        }}
+        QPushButton:hover {{
+            background-color: {};
+        }}
+        QPushButton:pressed {{
+            background-color: {};
+        }}
+        """.format(theme_toml[theme_style]['foreground'], theme_toml[theme_style]['foreground2'], theme_toml[theme_style]['foreground3']))
+        self.notes_cancel_button.clicked.connect(self.toggle_window)
+        self.notes_cancel_button.clicked.connect(self.remove_buttons)
+        self.notes_cancel_button.clicked.connect(self.on_text_changed)
+        self.notes_cancel_button.clicked.connect(self.revert_notes_button)
+        
+        self.notes_buttons_layout = QtWidgets.QHBoxLayout()
+        self.notes_buttons_layout.addWidget(self.notes_confirm_button)
+        self.notes_buttons_layout.addWidget(self.notes_confirm_and_exit_button)
+        self.notes_buttons_layout.addWidget(self.notes_cancel_button)
+        self.buttons_layout.addLayout(self.notes_buttons_layout)
+        
+        self.change_notes_button()
+
+    def change_notes_button(self):
+        self.notes_button.setIcon(QIcon(f"{get_program_directory()}/images/delete-{'dark' if dark else 'light'}.svg"))
+        self.notes_button.clicked.connect(lambda: self.notes_textbox.setText(""))
+
+    def revert_notes_button(self):
+        self.notes_button.setIcon(QIcon(f"{get_program_directory()}/images/notes-{'dark' if dark else 'light'}.svg"))
+        self.notes_button.clicked.connect(self.open_notes)
 
     @QtCore.Slot()
     def change_text(self, text):
@@ -1234,10 +1418,36 @@ class MainWindow(QtWidgets.QWidget):
                         self.reset_settings_confirmation()
                     elif program == "Exit kaboom.kaboom":
                         self.exit_program()
+                    elif program == "Open kaboom Notes.kaboom":
+                        self.open_notes()
                 else:
-                    determine_program(self.search_bar.text())
+                    determine_program(program)
                     self.search_bar.clear()
                     self.toggle_window()
+
+    @QtCore.Slot()
+    def update_markdown_preview(self):
+        markdown_text = self.notes_textbox.toPlainText()
+        html = markdown(markdown_text)
+        self.markdown_preview.setHtml(html)
+
+    def load_notes(self) -> str:
+        notes_path = get_config()
+        notes_path = Path(str(notes_path).removesuffix("config.toml"))
+        try:
+            with open(str(Path(notes_path, "notes.md")), "r") as file:
+                notes = file.read()
+                return notes
+        except FileNotFoundError:
+            return None
+
+    def save_notes(self):
+        notes_path = get_config()
+        notes_path = Path(str(notes_path).removesuffix("config.toml"))
+        with open(str(Path(notes_path, "notes.md")), "w") as file:
+            file.seek(0)
+            file.truncate()
+            file.write(self.notes_textbox.toPlainText())
 
     def on_yank_key_pressed(self):
         if self.isVisible and not self.search_bar.selectedText():
@@ -1295,7 +1505,7 @@ if __name__ == "__main__":
 
     app = QApplication([])
     app.setStyle("macos" if platform.system() == "Darwin" else "Fusion")
-    app.setWindowIcon(QIcon(str(Path("images", f"logo-light.svg"))))
+    app.setWindowIcon(QIcon(str(Path(f"{get_program_directory()}/images", f"logo-light.svg"))))
 
     if platform.system() == "Linux":
         timer = QTimer()
@@ -1307,23 +1517,25 @@ if __name__ == "__main__":
 
     tray = QSystemTrayIcon()
     # tray.setIcon(QIcon(str(Path("images", f"logo-{'light' if windows_theme == 'dark' else 'dark'}.svg"))))
-    tray.setIcon(QIcon(str(Path("images", f"logo-dark.svg"))))
+    tray.setIcon(QIcon(str(Path(f"{get_program_directory()}/images", f"logo-dark.svg"))))
     tray.setVisible(True)
     tray.setToolTip(f"{core_config['Settings']['program_title']}")
 
     menu = QMenu()
     
-    menu.addAction(QIcon(str(Path("images", f"logo-light.svg"))), core_config["Settings"]["program_title"])
+    menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"logo-light.svg"))), core_config["Settings"]["program_title"])
 
-    show_action = menu.addAction(QIcon(str(Path("images", f"hide-light.svg"))), "&Toggle")
-    settings_action = menu.addAction(QIcon(str(Path("images", f"settings-light.svg"))), "&Preferences")
-    reset_position_action = menu.addAction(QIcon(str(Path("images", f"center-light.svg"))), "&Reset Position")
-    exit_action = menu.addAction(QIcon(str(Path("images", f"exit-light.svg"))), "&Quit")
+    show_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"hide-light.svg"))), "&Toggle")
+    settings_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"settings-light.svg"))), "&Preferences")
+    notes_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"notes-light.svg"))), "&Notes")
+    reset_position_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"center-light.svg"))), "&Reset Position")
+    exit_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"exit-light.svg"))), "&Quit")
     tray.setContextMenu(menu)
 
     tray.activated.connect(widget.tray_toggle_window)
     show_action.triggered.connect(widget.toggle_window)
     settings_action.triggered.connect(widget.open_settings)
+    notes_action.triggered.connect(widget.open_notes)
     reset_position_action.triggered.connect(widget.center_window)
     exit_action.triggered.connect(os._exit)
 

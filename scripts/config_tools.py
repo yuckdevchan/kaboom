@@ -1,6 +1,6 @@
 import platform, os
 from pathlib import Path
-from os_tools import current_user
+from scripts.os_tools import current_user
 
 windows_config_directories = [
     f"C:\\Users\\{current_user()}\\AppData\\Local\\kaboom"
@@ -13,6 +13,10 @@ linux_config_directories = [
 macos_config_directories = [
     "~/Library/Application Support/kaboom"
 ]
+
+windows_program_directory = f"C:\\Program Files\\kaboom"
+linux_program_directory = "/usr/share/kaboom"
+macos_program_directory = "/Applications/kaboom"
 
 def get_config() -> Path:
     config = None
@@ -35,7 +39,22 @@ def get_config() -> Path:
             with open(Path(config_dirs[0], "config.toml"), "w") as f2:
                 f2.write(f.read())
         config = get_config()
-    return Path(config)
+    return os.path.abspath(Path(config))
+
+def get_program_directory() -> Path:
+    if platform.system() == "Windows":
+        return Path(windows_program_directory)
+    elif platform.system() == "Linux":
+        return Path(linux_program_directory)
+    elif platform.system() == "Darwin":
+        return Path(macos_program_directory)
+    else:
+        raise Exception("Unsupported platform")
 
 def get_core_config() -> Path:
-    return Path("configs", "core.toml")
+    if platform.system() == "Windows":
+        return Path(f"{windows_program_directory}\\configs\\core.toml")
+    elif platform.system() == "Linux":
+        return Path(f"{linux_program_directory}/configs/core.toml")
+    elif platform.system() == "Darwin":
+        return Path(f"{macos_program_directory}/configs/core.toml")

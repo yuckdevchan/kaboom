@@ -6,8 +6,8 @@ if platform.system() == "Windows":
 elif platform.system() == "Linux":
     import configparser
 from pathlib import Path
-from config_tools import get_config, get_core_config
-from os_tools import current_user
+from scripts.config_tools import get_config, get_core_config, get_program_directory
+from scripts.os_tools import current_user
 from setproctitle import setproctitle
 
 setproctitle("kaboom")
@@ -50,12 +50,14 @@ def list_programs() -> list:
     max_results = config["Settings"]["max_results"]
     if platform.system() == "Windows":
         lnk_files = []
+        lnk_file_names = []
         for directory in windows_directories:
             for root, dirs, files in os.walk(directory):
                 for file in files:
-                    if file.endswith(".lnk"):
+                    if file.endswith(".lnk") and not file == "kaboom.lnk" and file.rsplit("\\")[-1] not in lnk_file_names:
                         relative_path = Path(root).relative_to(directory)
                         lnk_files.append(str(Path(relative_path) / file))
+                        lnk_file_names.append(file)
         program_list = lnk_files
     elif platform.system() == "Linux":
         desktop_files = []
@@ -72,9 +74,10 @@ def list_programs() -> list:
                     program_list.append(file)
                 program_list.append(file)
     kaboom_programs = [
-        f"Open {core_config['Settings']['program_title']} Settings.kaboom", 
+        f"Open {core_config['Settings']['program_title']} Settings.kaboom",
         f"Reset {core_config['Settings']['program_title']} Settings.kaboom",
         f"Exit {core_config['Settings']['program_title']}.kaboom",
+        f"Open {core_config['Settings']['program_title']} Notes.kaboom",
     ]
     program_list += kaboom_programs
     program_list = sorted(program_list)
@@ -129,7 +132,122 @@ def is_calculation(s):
             return True
     except Exception as e:
         return False
-    
+
+weight_units = {
+    ("kg", "kilogram", "kilograms"): 1,
+    ("g", "gram", "grams", "grammes"): 1000,
+    ("mg", "milligram", "milligrams"): 1_000_000,
+    ("mcg", "microgram", "micrograms"): 1_000_000,
+    ("ng", "nanogram", "nanograms"): 1_000_000_000,
+    ("pg", "picogram", "picograms"): 1_000_000_000_000,
+    ("fg", "femtogram", "femtograms"): 1_000_000_000_000_000,
+    ("ag", "attogram", "attograms"): 1_000_000_000_000_000_000,
+    ("zg", "zeptogram", "zeptograms"): 1_000_000_000_000_000_000_000,
+    ("yg", "yoctogram", "yoctograms"): 1_000_000_000_000_000_000_000_000,
+    ("lb", "lbs", "pound", "pounds"): 2.20462,
+    ("oz", "ounce", "ounces"): 35.274,
+    ("st", "stone", "stones"): 0.157473,
+    ("t", "tonne", "tonnes"): 0.001,
+    ("cwt", "hundredweight", "hundredweights"): 0.0196841,
+}
+
+length_units = {
+    ("m", "meter", "metre", "meters", "metres"): 1,
+    ("cm", "centimeter", "centimetre", "centimeters", "centimetres"): 100,
+    ("km", "kilometer", "kilometre", "kilometers", "kilometres"): 0.001,
+    ("mm", "millimeter", "millimetre", "millimeters", "millimetres"): 1000,
+    ("um", "micrometer", "micrometre", "micrometers", "micrometres"): 1_000_000,
+    ("nm", "nanometer", "nanometre", "nanometers", "nanometres"): 1_000_000_000,
+    ("pm", "picometer", "picometre", "picometers", "picometres"): 1_000_000_000_000,
+    ("fm", "femtometer", "femtometre", "femtometers", "femtometres"): 1_000_000_000,
+    ("am", "attometer", "attometre", "attometers", "attometres"): 1_000_000_000_000,
+    ("zm", "zeptometer", "zeptometre", "zeptometers", "zeptometres"): 1_000_000,
+    ("ym", "yoctometer", "yoctometre", "yoctometers", "yoctometres"): 1_000_000_000,
+    ("mi", "mile", "miles"): 0.000621371,
+    ("yd", "yard", "yards"): 1.09361,
+    ("ft", "foot", "feet"): 3.28084,
+    ("in", "inch", "inches"): 39.3701,
+    ("nmi", "nautical mile", "nautical miles"): 0.000539957,
+    ("au", "astronomical unit", "astronomical units"): 6.68459e-12,
+    ("ly", "light-year", "light-years", "lightyear", "lightyears"): 1.057e-16,
+    ("pc", "parsec", "parsecs"): 3.24078e-17,
+    ("ft", "foot", "feet"): 3.28084,
+    ("ft", "foot", "feet"): 3.28084,
+    ("in", "inch", "inches"): 39.3701,
+    ("yd", "yard", "yards"): 1.09361,
+    ("mi", "mile", "miles"): 0.000621371,
+}
+
+volume_units = {
+    ("l", "liter", "litre", "liters", "litres"): 1,
+    ("ml", "milliliter", "millilitre", "milliliters", "millilitres"): 1000,
+    ("cm^3", "cc", "cubic centimeter", "cubic centimetre", "cubic centimeters", "cubic centimetres"): 1000,
+    ("m^3", "cubic meter", "cubic metre", "cubic meters", "cubic metres"): 0.001,
+    ("ft^3", "cubic foot", "cubic feet"): 0.0353147,
+    ("in^3", "cubic inch", "cubic inches"): 61.0237,
+    ("gal", "gallon", "gallons"): 0.264172,
+    ("qt", "quart", "quarts"): 1.05669,
+    ("pt", "pint", "pints"): 2.11338,
+    ("cup", "cups"): 4.22675,
+    ("fl oz", "fluid ounce", "fluid ounces"): 33.814,
+}
+
+time_units = {
+    ("s", "second", "seconds"): 1,
+    ("ms", "millisecond", "milliseconds"): 1000,
+    ("min", "minute", "minutes"): 0.0166667,
+    ("h", "hour", "hours"): 0.000277778,
+    ("d", "day", "days"): 0.0000115741,
+    ("wk", "week", "weeks"): 0.00000165344,
+    ("mo", "month", "months"): 0.000000380517,
+    ("y", "year", "years"): 0.0000000316881,
+}
+
+units = [weight_units, length_units, volume_units, time_units]
+
+def conversion(text):
+    text = text.lower()
+    if "to" in text.split(" ") or "in" in text.split(" "):
+        if "to" in text.split(" "):
+            text = text.split("to")
+        elif "in" in text.split(" "):
+            text = text.split("in")
+        unit = text[1].strip()
+        try:
+            value, from_unit = text[0].strip().split()
+        except ValueError:
+            print(f"Task Failed Sucessfully (Caught Error): \nValueError: not enough values to unpack (expected 2, got 1)\n\nBug Report URL: {core_config['Settings']['bug_report_url']}")
+            return None
+        from_unit_in_key = False
+        unit_in_key = False
+        for unit_dict in units:
+            unit_dict_keys = unit_dict.keys()
+            for key in unit_dict_keys:
+                if from_unit in key:
+                    from_unit_in_key = True
+                if unit in key:
+                    unit_in_key = True
+        if from_unit_in_key and unit_in_key:
+            from_unit_value = None
+            to_unit_value = None
+            for unit_dict in units:
+                for key, conversion_factor in unit_dict.items():
+                    if from_unit in key:
+                        from_unit_value = conversion_factor
+                    if unit in key:
+                        to_unit_value = conversion_factor
+            if from_unit_value and to_unit_value:
+                # Convert the value to the base unit (e.g., meters, kilograms)
+                value_in_base_unit = float(value) / from_unit_value
+
+                # Convert the value in the base unit to the target unit
+                value_in_target_unit = value_in_base_unit * to_unit_value
+                if value_in_target_unit.is_integer():
+                    return int(value_in_target_unit)
+                return value_in_target_unit
+
+    return None
+
 def search_web(search_text):
     with open(Path("data", "tlds.txt"), "r") as f:
         tlds = f.readlines()
@@ -198,7 +316,7 @@ def run_shortcut(shortcut: str):
             shortcut = shell.CreateShortCut(shortcut)
         except Exception as e:
             print(f"Task Failed Sucessfully (Caught Error): \n{e}")
-            send_notification("Task Failed Sucessfully", f"Failed to launch program.\n\nYou can report bugs at {core_config['Settings']['bug_report_url']}")
+            send_notification("Task Failed Sucessfully", f"Failed to launch program.\n\nBug Report URL: {core_config['Settings']['bug_report_url']}")
             return
         print(f"Launched '{shortcut.Targetpath} {shortcut.Arguments}'")
         try:
@@ -226,7 +344,6 @@ def run_shortcut(shortcut: str):
 import win32com.client
 import os
 import struct
-import imghdr
 
 def determine_program(string: str):
     narrowed_list = narrow_down(string)
@@ -270,14 +387,14 @@ def program_name_to_shortcut(program_name: str) -> Path:
 
 def load_themes():
     themes = []
-    for file in os.listdir("themes"):
+    for file in os.listdir(f"{get_program_directory()}/themes"):
         if file.endswith(".toml"):
                 themes.append(file)
     return themes
 
 def load_qt_styles():
     qt_styles = []
-    for file in os.listdir("themes"):
+    for file in os.listdir(f"{get_program_directory()}/themes"):
         if file.endswith(".qss"):
                 qt_styles.append(file)
     return qt_styles
