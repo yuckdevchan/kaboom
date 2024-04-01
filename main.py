@@ -1515,19 +1515,21 @@ if __name__ == "__main__":
     global default_config_toml
     with open(Path(get_program_directory(), "configs", f"default-{platform.system().lower().replace('darwin', 'macos')}.toml"), "r") as default_config_file:
         default_config_toml = toml.load(default_config_file)
-        print(default_config_toml)
     with open(config_path, 'r+') as file:
         config = toml.load(file)
         global config_toml
         config_toml = config
-        # if there is a new setting in the default config, add it to the user's config with the default value
+        brokie_config = False
         for key in default_config_toml["Settings"]:
-            print(key)
             if key not in config_toml["Settings"]:
+                brokie_config = True
                 config_toml["Settings"][key] = default_config_toml["Settings"][key]
-        file.seek(0)
-        toml.dump(config_toml, file)
-        file.truncate()
+        if brokie_config:
+            print("Config file has missing keys or is outdated. Updating config file with new values... (This is expected behaviour)")
+            file.seek(0)
+            toml.dump(config_toml, file)
+            file.truncate()
+            os.execl(sys.executable, sys.executable, *sys.argv)
         global max_results
         max_results = config_toml["Settings"]["max_results"]
     with open(get_core_config(), 'r') as file:
@@ -1572,7 +1574,7 @@ if __name__ == "__main__":
     notes_action.triggered.connect(widget.open_notes)
     notes_action.triggered.connect(widget.toggle_show)
     reset_position_action.triggered.connect(widget.center_window)
-    exit_action.triggered.connect(os._exit)
+    exit_action.triggered.connect(widget.exit_program)
 
     font = QtGui.QFont(config["Settings"]["font_family"], config["Settings"]["font_size"])
     app.setFont(font)
