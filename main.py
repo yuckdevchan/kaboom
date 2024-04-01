@@ -12,7 +12,7 @@ if platform.system() == "Windows":
     from qtacrylic import WindowEffect
 
 from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut, conversion
-from scripts.config_tools import get_config, get_core_config, get_program_directory
+from scripts.config_tools import get_config, get_core_config, get_program_directory, current_user
 
 class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
@@ -350,8 +350,10 @@ Qt Version: {PySide6.QtCore.__version__}
         self.plugin_settings_label = QtWidgets.QLabel("Plugin Settings", self)
         self.plugin_settings_label.setStyleSheet("font-weight: bold;")
         self.plugin_settings_frame_layout.addWidget(self.plugin_settings_label)
+        self.plugin_settings_frame_layout.addStretch()
 
         self.plugin_settings_layout = QtWidgets.QVBoxLayout()
+        self.plugin_settings_layout.addStretch()
         self.plugin_settings_frame_layout.addLayout(self.plugin_settings_layout)
 
         self.ninth_tab_layout.addLayout(self.plugins_layout)
@@ -366,54 +368,58 @@ Qt Version: {PySide6.QtCore.__version__}
             config = toml.load(file)
 
             for i in reversed(range(self.plugin_settings_layout.count())):
-                self.plugin_settings_layout.itemAt(i).widget().deleteLater()
+                item = self.plugin_settings_layout.itemAt(i)
+                widget = item.widget()
+                if widget is not None:  # check if the item is a widget
+                    self.plugin_settings_layout.removeItem(item)
+                    widget.deleteLater()
 
             if self.plugins_list.currentItem().text() == "Start Menu Apps":
                 self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Start Menu Apps"))
-                self.search_start_menu_switch = QtWidgets.QCheckBox("Search Start Menu Apps", self)
+                self.search_start_menu_switch = QtWidgets.QCheckBox("Enabled", self)
                 self.search_start_menu_switch.setChecked(config["Settings"]["search_start_menu"])
                 self.search_start_menu_switch.stateChanged.connect(self.change_search_start_menu)
                 self.plugin_settings_layout.addWidget(self.search_start_menu_switch)
             elif self.plugins_list.currentItem().text() == "Maths Processing":
                 self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Maths Processing"))
-                self.search_calculator_switch = QtWidgets.QCheckBox("Search Calculator", self)
+                self.search_calculator_switch = QtWidgets.QCheckBox("Enabled", self)
                 self.search_calculator_switch.setChecked(config["Settings"]["search_calculator"])
                 self.search_calculator_switch.stateChanged.connect(self.change_search_calculator)
                 self.plugin_settings_layout.addWidget(self.search_calculator_switch)
             elif self.plugins_list.currentItem().text() == "Unit Conversions":
                 self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Unit Conversions"))
-                self.search_unit_conversion_switch = QtWidgets.QCheckBox("Search Unit Conversions", self)
+                self.search_unit_conversion_switch = QtWidgets.QCheckBox("Enabled", self)
                 self.search_unit_conversion_switch.setChecked(config["Settings"]["search_unit_conversion"])
                 self.search_unit_conversion_switch.stateChanged.connect(self.change_search_unit_conversion)
                 self.plugin_settings_layout.addWidget(self.search_unit_conversion_switch)
             elif self.plugins_list.currentItem().text() == "Filesystem Search":
                 self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Filesystem Search"))
-                self.filesystem_search_switch = QtWidgets.QCheckBox("Search Filesystem", self)
+                self.filesystem_search_switch = QtWidgets.QCheckBox("Enabled", self)
                 self.filesystem_search_switch.setChecked(config["Settings"]["search_filesystem"])
                 self.filesystem_search_switch.stateChanged.connect(self.change_search_filesystem)
                 self.plugin_settings_layout.addWidget(self.filesystem_search_switch)
             elif self.plugins_list.currentItem().text() == "Steam Game Search":
                 self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Steam Game Search"))
-                self.search_steam_switch = QtWidgets.QCheckBox("Search Steam Games", self)
+                self.search_steam_switch = QtWidgets.QCheckBox("Enabled", self)
                 self.search_steam_switch.setChecked(config["Settings"]["search_steam"])
                 self.search_steam_switch.stateChanged.connect(self.change_search_steam)
                 self.plugin_settings_layout.addWidget(self.search_steam_switch)
                 self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Steam Path:", self))
                 self.steam_path_input = QtWidgets.QLineEdit(self)
-                self.steam_path_input.setText(config["Settings"]["steam_path"])
+                self.steam_path_input.setText(config["Settings"]["steam_path"].replace("<CURRENT_USER>", current_user()))
                 self.plugin_settings_layout.addWidget(self.steam_path_input)
                 self.steam_path_picker = QtWidgets.QPushButton("Pick Steam Path", self)
                 self.steam_path_picker.clicked.connect(self.pick_steam_path)
                 self.plugin_settings_layout.addWidget(self.steam_path_picker)
             elif self.plugins_list.currentItem().text() == "BSManager Instance Search":
                 self.plugin_settings_layout.addWidget(QtWidgets.QLabel("BSManager Instance Search"))
-                self.search_bsman_switch = QtWidgets.QCheckBox("Search BSManager Instances", self)
+                self.search_bsman_switch = QtWidgets.QCheckBox("Enabled", self)
                 self.search_bsman_switch.setChecked(config["Settings"]["search_bsman"])
                 self.search_bsman_switch.stateChanged.connect(self.change_search_bsman)
                 self.plugin_settings_layout.addWidget(self.search_bsman_switch)
             elif self.plugins_list.currentItem().text() == "Web Search":
                 self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Web Search"))
-                self.search_web_switch = QtWidgets.QCheckBox("Search Web", self)
+                self.search_web_switch = QtWidgets.QCheckBox("Enabled", self)
                 self.search_web_switch.setChecked(config["Settings"]["search_web"])
                 self.search_web_switch.stateChanged.connect(self.change_search_web)
                 self.plugin_settings_layout.addWidget(self.search_web_switch)
