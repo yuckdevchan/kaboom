@@ -33,6 +33,7 @@ bsman_path = ""
 search_start_menu = true
 search_calculator = true
 search_unit_conversion = true
+search_filesystem = true
 search_web = true
 search_steam = true
 search_bsman = true
