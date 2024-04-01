@@ -243,8 +243,9 @@ def conversion(text):
                 # Convert the value in the base unit to the target unit
                 value_in_target_unit = value_in_base_unit * to_unit_value
                 if value_in_target_unit.is_integer():
-                    return int(value_in_target_unit)
-                return value_in_target_unit
+                    value_in_target_unit = int(value_in_target_unit)
+                result = [value_in_target_unit, unit]
+                return result
 
     return None
 

@@ -20,7 +20,12 @@ class SettingsPopup2(QtWidgets.QDialog):
         with open(get_config(), 'r') as file:
             config_toml = toml.load(file)
         self.setWindowTitle(f"{core_config['Settings']['program_title']} Settings")
-        self.resize(700, 100)
+        self.resize(796, 200)
+
+        textedit_qss = "border: 2px solid " + theme_toml[theme_style]["foreground2"] + "; border-radius: 8px; padding: 2px;"
+        slider_qss = "QSlider::groove:horizontal {background: " + theme_toml[theme_style]["foreground2"] + "; height: 10px; border-radius: 5px;} QSlider::handle:horizontal {background: " + theme_toml[theme_style]["text"] + "; width: 20px; height: 20px; border-radius: 10px;} QSlider::add-page:horizontal {background: " + theme_toml[theme_style]["background"] + "; border-radius: 5px;}"
+        button_qss = "QPushButton {border: 2px solid " + theme_toml[theme_style]["foreground2"] + "; border-radius: 10px; padding: 8px; background-color: " + theme_toml[theme_style]["background"] + "; color: " + theme_toml[theme_style]["text"] + ";} QPushButton:hover {background-color: " + theme_toml[theme_style]["foreground2"] + "; color: " + theme_toml[theme_style]["background"] + ";}"
+
         self.main_layout = QtWidgets.QVBoxLayout(self)
         self.tab_widget = QtWidgets.QTabWidget(self)
         self.main_layout.addWidget(self.tab_widget)
@@ -31,12 +36,14 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.fifth_tab = QtWidgets.QWidget(self)
         self.sixth_tab = QtWidgets.QWidget(self)
         self.seventh_tab = QtWidgets.QWidget(self)
-        self.eighth_tab = QtWidgets.QWidget(self)
+        # self.eighth_tab = QtWidgets.QWidget(self)
         self.ninth_tab = QtWidgets.QWidget(self)
+        self.tenth_tab = QtWidgets.QWidget(self)
 
         self.tab_widget.addTab(self.first_tab, "&Appearance")
         self.tab_widget.addTab(self.second_tab, "&Compositing")
-        self.tab_widget.addTab(self.eighth_tab, "&Plugins")
+        # self.tab_widget.addTab(self.eighth_tab, "&Plugins")
+        self.tab_widget.addTab(self.tenth_tab, "&Hotkey")
         self.tab_widget.addTab(self.ninth_tab, "&Plugins v2")
         self.tab_widget.addTab(self.third_tab, "&Search")
         self.tab_widget.addTab(self.seventh_tab, "S&tartup")
@@ -57,6 +64,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.qt_style_combobox.addItems(QStyleFactory.keys() + qt_styles_without_file_extension)
         self.qt_style_combobox.setCurrentText(config["Settings"]["qt_style"].replace(".qss", ""))
         self.qt_style_combobox.currentTextChanged.connect(self.change_qt_style)
+        self.qt_style_combobox.setMaximumWidth(400)
         self.first_tab_layout.addWidget(self.qt_style_combobox)
 
         self.theme_label = QtWidgets.QLabel("Colour Theme", self)
@@ -69,6 +77,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.themes_combobox.addItems(themes_without_file_extension)
         self.themes_combobox.setCurrentText(config["Settings"]["theme"])
         self.themes_combobox.currentTextChanged.connect(self.change_theme2)
+        self.themes_combobox.setMaximumWidth(400)
         self.first_tab_layout.addWidget(self.themes_combobox)
 
         self.theme_style_label = QtWidgets.QLabel("Theme Style", self)
@@ -87,8 +96,10 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.theme_style_radio.setChecked(True)
         self.theme_style.buttonClicked.connect(self.change_theme_radio)
 
+        self.first_tab_layout.addStretch()
+
         # Second tab
-        self.second_tab_layout = QtWidgets.QGridLayout(self.second_tab)
+        self.second_tab_layout = QtWidgets.QVBoxLayout(self.second_tab)
 
         self.opacity_label = QtWidgets.QLabel(f"Opacity: {int(config['Settings']['opacity'] * 100)}%", self)
         self.second_tab_layout.addWidget(self.opacity_label)
@@ -98,6 +109,8 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.opacity_slider.setMaximum(100)
         self.opacity_slider.setValue(config["Settings"]["opacity"] * 100)
         self.opacity_slider.valueChanged.connect(self.change_opacity)
+        self.opacity_slider.setMaximumWidth(400)
+        self.opacity_slider.setStyleSheet(slider_qss)
         self.second_tab_layout.addWidget(self.opacity_slider)
 
         self.window_animation_label = QtWidgets.QLabel("Window Animation", self)
@@ -108,6 +121,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.window_animation_combobox.addItems(["None", "Fade"])
         self.window_animation_combobox.setCurrentText(config["Settings"]["window_animation"])
         self.window_animation_combobox.currentTextChanged.connect(self.change_window_animation)
+        self.window_animation_combobox.setMaximumWidth(400)
         self.second_tab_layout.addWidget(self.window_animation_combobox)
 
         self.draggable_window_switch = QtWidgets.QCheckBox("Draggable Window", self)
@@ -141,8 +155,10 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.translucent_background_switch.stateChanged.connect(self.change_translucent_background)
         self.second_tab_layout.addWidget(self.translucent_background_switch)
 
+        self.second_tab_layout.addStretch()
+
         # third tab
-        self.third_tab_layout = QtWidgets.QGridLayout(self.third_tab)
+        self.third_tab_layout = QtWidgets.QVBoxLayout(self.third_tab)
 
         self.max_results_label = QtWidgets.QLabel("Max Results (Default: 6, Choose -1 for Unlimited)", self)
         self.max_results_label.setStyleSheet("font-weight: bold;")
@@ -168,18 +184,22 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.no_results_text_input.textChanged.connect(self.change_no_results_text)
         self.third_tab_layout.addWidget(self.no_results_text_input)
 
+        self.third_tab_layout.addStretch()
+
         # fourth tab
-        self.fourth_tab_layout = QtWidgets.QGridLayout(self.fourth_tab)
+        self.fourth_tab_layout = QtWidgets.QVBoxLayout(self.fourth_tab)
 
         self.reset_settings_button = QtWidgets.QPushButton("Reset All Settings", self)
         self.reset_settings_button.clicked.connect(self.reset_settings_confirmation)
+        self.reset_settings_button.setStyleSheet(button_qss)
         self.fourth_tab_layout.addWidget(self.reset_settings_button)
 
         self.edit_toml_button = QtWidgets.QPushButton("Edit TOML In Text Editor", self)
         self.edit_toml_button.clicked.connect(self.edit_toml)
+        self.edit_toml_button.setStyleSheet(button_qss)
         self.fourth_tab_layout.addWidget(self.edit_toml_button)
 
-        self.main_layout.setSpacing(0)
+        self.fourth_tab_layout.addStretch()
 
         # fifth tab
         self.fifth_tab_layout = QtWidgets.QVBoxLayout(self.fifth_tab)
@@ -212,6 +232,8 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.bgm_volume_slider.setValue(config["Settings"]["bgm_volume"] * 100)
         self.bgm_volume_slider.valueChanged.connect(self.change_bgm_volume)
         self.fifth_tab_layout.addWidget(self.bgm_volume_slider)
+
+        self.fifth_tab_layout.addStretch()
 
         # sixth tab
         self.sixth_tab_layout = QtWidgets.QVBoxLayout(self.sixth_tab)
@@ -261,6 +283,8 @@ Qt Version: {PySide6.QtCore.__version__}
 """, self)
         self.sixth_tab_layout.addWidget(self.your_pc_info)
 
+        self.sixth_tab_layout.addStretch()
+
         # seventh tab
         self.seventh_tab_layout = QtWidgets.QVBoxLayout(self.seventh_tab)
         
@@ -274,58 +298,62 @@ Qt Version: {PySide6.QtCore.__version__}
         self.open_in_background_switch.stateChanged.connect(self.change_open_in_background)
         self.seventh_tab_layout.addWidget(self.open_in_background_switch)
 
+        self.seventh_tab_layout.addStretch()
+
         # eighth tab
-        self.eighth_tab_layout = QtWidgets.QVBoxLayout(self.eighth_tab)
+        # self.eighth_tab_layout = QtWidgets.QVBoxLayout(self.eighth_tab)
 
-        self.search_providers_label = QtWidgets.QLabel("Search Providers", self)
-        self.search_providers_label.setStyleSheet("font-weight: bold;")
-        self.eighth_tab_layout.addWidget(self.search_providers_label)
+        # self.search_providers_label = QtWidgets.QLabel("Search Providers", self)
+        # self.search_providers_label.setStyleSheet("font-weight: bold;")
+        # self.eighth_tab_layout.addWidget(self.search_providers_label)
 
-        self.search_start_menu_switch = QtWidgets.QCheckBox("Start Menu Apps", self)
-        self.search_start_menu_switch.setChecked(config_toml["Settings"]["search_start_menu"])
-        self.search_start_menu_switch.stateChanged.connect(self.change_search_start_menu)
-        self.eighth_tab_layout.addWidget(self.search_start_menu_switch)
+        # self.search_start_menu_switch = QtWidgets.QCheckBox("Start Menu Apps", self)
+        # self.search_start_menu_switch.setChecked(config_toml["Settings"]["search_start_menu"])
+        # self.search_start_menu_switch.stateChanged.connect(self.change_search_start_menu)
+        # self.eighth_tab_layout.addWidget(self.search_start_menu_switch)
 
-        self.search_calculator_switch = QtWidgets.QCheckBox("Maths Processing", self)
-        self.search_calculator_switch.setChecked(config_toml["Settings"]["search_calculator"])
-        self.search_calculator_switch.stateChanged.connect(self.change_search_calculator)
-        self.eighth_tab_layout.addWidget(self.search_calculator_switch)
+        # self.search_calculator_switch = QtWidgets.QCheckBox("Maths Processing", self)
+        # self.search_calculator_switch.setChecked(config_toml["Settings"]["search_calculator"])
+        # self.search_calculator_switch.stateChanged.connect(self.change_search_calculator)
+        # self.eighth_tab_layout.addWidget(self.search_calculator_switch)
 
-        self.search_unit_conversion_switch = QtWidgets.QCheckBox("Unit Conversions", self)
-        self.search_unit_conversion_switch.setChecked(config_toml["Settings"]["search_unit_conversion"])
-        self.search_unit_conversion_switch.stateChanged.connect(self.change_search_unit_conversion)
-        self.eighth_tab_layout.addWidget(self.search_unit_conversion_switch)
+        # self.search_unit_conversion_switch = QtWidgets.QCheckBox("Unit Conversions", self)
+        # self.search_unit_conversion_switch.setChecked(config_toml["Settings"]["search_unit_conversion"])
+        # self.search_unit_conversion_switch.stateChanged.connect(self.change_search_unit_conversion)
+        # self.eighth_tab_layout.addWidget(self.search_unit_conversion_switch)
 
-        self.filesystem_search_switch = QtWidgets.QCheckBox("Filesystem Search", self)
-        self.filesystem_search_switch.setChecked(config_toml["Settings"]["search_filesystem"])
-        self.filesystem_search_switch.stateChanged.connect(self.change_search_filesystem)
-        self.eighth_tab_layout.addWidget(self.filesystem_search_switch)
+        # self.filesystem_search_switch = QtWidgets.QCheckBox("Filesystem Search", self)
+        # self.filesystem_search_switch.setChecked(config_toml["Settings"]["search_filesystem"])
+        # self.filesystem_search_switch.stateChanged.connect(self.change_search_filesystem)
+        # self.eighth_tab_layout.addWidget(self.filesystem_search_switch)
 
-        self.search_steam_switch = QtWidgets.QCheckBox("Steam Game Search", self)
-        self.search_steam_switch.setChecked(config_toml["Settings"]["search_steam"])
-        self.search_steam_switch.stateChanged.connect(self.change_search_steam)
-        self.eighth_tab_layout.addWidget(self.search_steam_switch)
+        # self.search_steam_switch = QtWidgets.QCheckBox("Steam Game Search", self)
+        # self.search_steam_switch.setChecked(config_toml["Settings"]["search_steam"])
+        # self.search_steam_switch.stateChanged.connect(self.change_search_steam)
+        # self.eighth_tab_layout.addWidget(self.search_steam_switch)
 
-        self.search_bsman_switch = QtWidgets.QCheckBox("BSManager Instance Search", self)
-        self.search_bsman_switch.setChecked(config_toml["Settings"]["search_bsman"])
-        self.search_bsman_switch.stateChanged.connect(self.change_search_bsman)
-        self.eighth_tab_layout.addWidget(self.search_bsman_switch)
+        # self.search_bsman_switch = QtWidgets.QCheckBox("BSManager Instance Search", self)
+        # self.search_bsman_switch.setChecked(config_toml["Settings"]["search_bsman"])
+        # self.search_bsman_switch.stateChanged.connect(self.change_search_bsman)
+        # self.eighth_tab_layout.addWidget(self.search_bsman_switch)
 
-        self.search_web_switch = QtWidgets.QCheckBox("Web Search", self)
-        self.search_web_switch.setChecked(config_toml["Settings"]["search_web"])
-        self.search_web_switch.stateChanged.connect(self.change_search_web)
-        self.eighth_tab_layout.addWidget(self.search_web_switch)
+        # self.search_web_switch = QtWidgets.QCheckBox("Web Search", self)
+        # self.search_web_switch.setChecked(config_toml["Settings"]["search_web"])
+        # self.search_web_switch.stateChanged.connect(self.change_search_web)
+        # self.eighth_tab_layout.addWidget(self.search_web_switch)
 
-        self.default_search_label = QtWidgets.QLabel("Default Search Engine:", self)
-        self.eighth_tab_layout.addWidget(self.default_search_label)
+        # self.default_search_label = QtWidgets.QLabel("Default Search Engine:", self)
+        # self.eighth_tab_layout.addWidget(self.default_search_label)
 
-        self.default_search_engine_combobox = QtWidgets.QComboBox(self)
-        search_engines = []
-        for search_engine in config["Search_Engines"].keys(): search_engines.append(search_engine.title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
-        self.default_search_engine_combobox.addItems(search_engines)
-        self.default_search_engine_combobox.setCurrentText(config_toml["Settings"]["default_search_engine"].title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
-        self.default_search_engine_combobox.currentTextChanged.connect(self.change_default_search_engine)
-        self.eighth_tab_layout.addWidget(self.default_search_engine_combobox)
+        # self.default_search_engine_combobox = QtWidgets.QComboBox(self)
+        # search_engines = []
+        # for search_engine in config["Search_Engines"].keys(): search_engines.append(search_engine.title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
+        # self.default_search_engine_combobox.addItems(search_engines)
+        # self.default_search_engine_combobox.setCurrentText(config_toml["Settings"]["default_search_engine"].title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
+        # self.default_search_engine_combobox.currentTextChanged.connect(self.change_default_search_engine)
+        # self.eighth_tab_layout.addWidget(self.default_search_engine_combobox)
+
+        # self.eighth_tab_layout.addStretch()
         
         # ninth tab
 
@@ -354,15 +382,57 @@ Qt Version: {PySide6.QtCore.__version__}
         self.plugin_settings_frame_layout.addStretch()
 
         self.plugin_settings_layout = QtWidgets.QVBoxLayout()
-        self.plugin_settings_layout.addStretch()
-        self.plugin_settings_frame_layout.addLayout(self.plugin_settings_layout)
-
+        self.plugin_settings_layout_outer = QtWidgets.QVBoxLayout()
+        self.plugin_settings_layout_outer.addLayout(self.plugin_settings_layout)
+        self.plugin_settings_layout_outer.addStretch()
+        self.plugin_settings_frame_layout.addLayout(self.plugin_settings_layout_outer)
+        
         self.ninth_tab_layout.addLayout(self.plugins_layout)
+
+        # tenth tab
+
+        self.tenth_tab_layout = QtWidgets.QVBoxLayout(self.tenth_tab)
+
+        self.hotkey_label = QtWidgets.QLabel("Hotkey", self)
+        self.hotkey_label.setStyleSheet("font-weight: bold;")
+        self.tenth_tab_layout.addWidget(self.hotkey_label)
+
+        self.hotkey_edit = QtWidgets.QLineEdit(self)
+        self.hotkey_edit.setText(config["Settings"]["hotkey"])
+        self.hotkey_edit.textChanged.connect(self.change_hotkey)
+        self.hotkey_edit.setStyleSheet(textedit_qss)
+        self.tenth_tab_layout.addWidget(self.hotkey_edit)
+
+        self.suppress_hotkey_switch = QtWidgets.QCheckBox("Suppress Hotkey", self)
+        self.suppress_hotkey_switch.setChecked(config["Settings"]["suppress_hotkey"])
+        self.suppress_hotkey_switch.stateChanged.connect(self.change_suppress_hotkey)
+        self.tenth_tab_layout.addWidget(self.suppress_hotkey_switch)
+
+        self.tenth_tab_layout.addStretch()
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         if platform.system() == "Windows":
             self.windowFX = WindowEffect()
             self.windowFX.setAeroEffect(self.winId())
+
+    def change_suppress_hotkey(self, state):
+        with open(get_config(), 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                config['Settings']['suppress_hotkey'] = False
+            elif state == 2:
+                config['Settings']['suppress_hotkey'] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
+
+    def change_hotkey(self, text):
+        with open(get_config(), 'r+') as file:
+            config = toml.load(file)
+            config['Settings']['hotkey'] = text
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
 
     def change_plugins(self):
         with open(get_config(), 'r+') as file:
@@ -425,10 +495,24 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.search_web_switch.setChecked(config["Settings"]["search_web"])
                 self.search_web_switch.stateChanged.connect(self.change_search_web)
                 self.plugin_settings_layout.addWidget(self.search_web_switch)
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Default Search Engine:", self))
+                self.default_search_engine_combobox = QtWidgets.QComboBox(self)
+                search_engines = []
+                for search_engine in config["Search_Engines"].keys(): search_engines.append(search_engine.title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
+                self.default_search_engine_combobox.addItems(search_engines)
+                self.default_search_engine_combobox.setCurrentText(config_toml["Settings"]["default_search_engine"].title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
+                self.default_search_engine_combobox.currentTextChanged.connect(self.change_default_search_engine)
+                self.plugin_settings_layout.addWidget(self.default_search_engine_combobox)
 
     def pick_steam_path(self):
         steam_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Steam Path")
         self.steam_path_input.setText(steam_path)
+        with open(get_config(), 'r+') as file:
+            config = toml.load(file)
+            config["Settings"]["steam_path"] = steam_path
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
 
     def change_window_animation(self, text):
         with open(get_config(), 'r+') as file:
@@ -499,7 +583,13 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.parent().player.play()
 
     def closeEvent(self, event):
-        self.parent().search_bar.setFocus()
+        if hasattr(self.parent(), "notes_textbox"):
+            try:
+                self.parent().notes_textbox.setFocus()
+            except:
+                self.parent().search_bar.setFocus()
+        else:
+            self.parent().search_bar.setFocus()
         global theme_toml
         global config_toml
         config_toml = toml.load(open(get_config(), 'r'))
@@ -559,7 +649,7 @@ Qt Version: {PySide6.QtCore.__version__}
         border: 2px solid """ + fg_colour + """;
         border-radius: 10px;
         padding: 0 8px;
-        selection-background-color: darkgray;
+        selection-background-color: """ + theme_toml[theme_style]["foreground2"] + """;
     }
 """)
 
@@ -569,13 +659,12 @@ Qt Version: {PySide6.QtCore.__version__}
         self.parent().exit_button.setIcon(QIcon(f"{get_program_directory()}/images/exit-light.svg"))
         self.parent().hide_button.setIcon(QIcon(f"{get_program_directory()}/images/hide-light.svg"))
         self.parent().clear_text_button.setIcon(QIcon(f"{get_program_directory()}/images/clear-light.svg"))
-        # change search bar stylesheet
         self.parent().search_bar.setStyleSheet("""
     QLineEdit {
         border: 2px solid """ + fg_colour + """;
         border-radius: 10px;
         padding: 0 8px;
-        selection-background-color: darkgray;
+        selection-background-color: """ + theme_toml[theme_style]["foreground2"] + """;
     }
 """)
 
@@ -980,7 +1069,7 @@ class MainWindow(QtWidgets.QWidget):
         border: 2px solid """ + fg_color + """;
         border-radius: 10px;
         padding: 0 8px;
-        selection-background-color: darkgray;
+        selection-background-color: """ + theme_toml[theme_style]["foreground2"] + """;
     }
 """)
         self.button_style = """
@@ -1046,11 +1135,12 @@ class MainWindow(QtWidgets.QWidget):
         self.scroll_area = QtWidgets.QScrollArea()
         self.scroll_area.setStyleSheet("""
     QScrollBar:vertical {
-        border: none;
-        background: lightgrey;
-        width: 12px;
-        margin: 15px 0 15px 0;
+        border: 2px solid """ + theme_toml[theme_style]["foreground2"] + """;
         border-radius: 6px;
+        background: lightgrey;
+        width: 16px;
+        margin: 15px 0 15px 0;
+        border-radius: 8px;
      }
      QScrollBar::handle:vertical {   
         background: grey;
@@ -1069,11 +1159,12 @@ class MainWindow(QtWidgets.QWidget):
      }
                                        
     QScrollBar:horizontal {
-        border: none;
-        background: lightgrey;
-        height: 12px;
-        margin: 0 15px 0 15px;
+        border: 2px solid """ + theme_toml[theme_style]["foreground2"] + """;
         border-radius: 6px;
+        background: lightgrey;
+        height: 16px;
+        margin: 0 15px 0 15px;
+        border-radius: 8px;
     }
     QScrollBar::handle:horizontal {
         background: grey;
@@ -1340,6 +1431,7 @@ class MainWindow(QtWidgets.QWidget):
         self.remove_buttons()
         self.revert_notes_button()
         narrowed_list = narrow_down(text)
+        conversion_result = conversion(text)
         if is_calculation(self.search_bar.text()) and config_toml["Settings"]["search_calculator"]:
             new_text = narrowed_list[0]
             if ("life" in self.search_bar.text() or "universe" in self.search_bar.text() or "everything" in self.search_bar.text()) and ("*" in self.search_bar.text() or "+" in self.search_bar.text() or "-" in self.search_bar.text() or "/" in self.search_bar.text()):
@@ -1360,12 +1452,12 @@ class MainWindow(QtWidgets.QWidget):
             self.button.setStyleSheet(f"border: none; text-align: left; font-size: {config['Settings']['font_size'] * 4}px;")
             self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(new_text.strip("=")))
             self.buttons_layout.addWidget(self.button)
-        elif not conversion(text) == None and config_toml["Settings"]["search_unit_conversion"]:
-            new_text = str(conversion(text))
+        elif not conversion_result == None and config_toml["Settings"]["search_unit_conversion"]:
+            new_text = f"{round(conversion_result[0], 3)} {conversion_result[1]}"
             self.button = QtWidgets.QPushButton(new_text, self)
             self.button.setStyleSheet(f"border: none; text-align: left; font-size: {config['Settings']['font_size'] * 4}px;")
             self.button.setToolTip("Click to copy to clipboard.")
-            self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(new_text))
+            self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(conversion_result[0]))
             self.buttons_layout.addWidget(self.button)
         else:
             if config_toml["Settings"]["search_start_menu"]:

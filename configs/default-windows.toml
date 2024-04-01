@@ -3,6 +3,7 @@ theme = "kaboom"
 theme_style = "dark"
 qt_style = "Fusion.qss"
 hotkey = "alt + space"
+suppress_hotkey = true
 bgm = false
 bgm_file = "griddy.wav"
 bgm_volume = 0.0
