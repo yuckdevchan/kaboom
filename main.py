@@ -402,6 +402,9 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.steam_path_input = QtWidgets.QLineEdit(self)
                 self.steam_path_input.setText(config["Settings"]["steam_path"])
                 self.plugin_settings_layout.addWidget(self.steam_path_input)
+                self.steam_path_picker = QtWidgets.QPushButton("Pick Steam Path", self)
+                self.steam_path_picker.clicked.connect(self.pick_steam_path)
+                self.plugin_settings_layout.addWidget(self.steam_path_picker)
             elif self.plugins_list.currentItem().text() == "BSManager Instance Search":
                 self.plugin_settings_layout.addWidget(QtWidgets.QLabel("BSManager Instance Search"))
                 self.search_bsman_switch = QtWidgets.QCheckBox("Search BSManager Instances", self)
@@ -414,6 +417,10 @@ Qt Version: {PySide6.QtCore.__version__}
                 self.search_web_switch.setChecked(config["Settings"]["search_web"])
                 self.search_web_switch.stateChanged.connect(self.change_search_web)
                 self.plugin_settings_layout.addWidget(self.search_web_switch)
+
+    def pick_steam_path(self):
+        steam_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Steam Path")
+        self.steam_path_input.setText(steam_path)
 
     def change_window_animation(self, text):
         with open(get_config(), 'r+') as file:
@@ -893,14 +900,13 @@ Qt Version: {PySide6.QtCore.__version__}
         reset_popup.setText("Warning!\nPermanently reset all settings to default?\nThe program will close.")
         reset_popup.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         reset_popup.setDefaultButton(QtWidgets.QMessageBox.No)
-        reset_popup.setStyleSheet(f"background-color: {config['Settings']['light_mode_bg']}; color: {config['Settings']['light_mode_text']};")
         reset_popup.setIcon(QtWidgets.QMessageBox.Warning)
         reset_popup.buttonClicked.connect(self.reset_settings)
         reset_popup.exec()
 
     def reset_settings(self, button):
         if button.text() == "&Yes":
-            with open(Path("configs", f'default-{platform.system().lower().replace("darwin", "macos")}.toml', 'r')) as file:
+            with open(Path(get_program_directory(), "configs", f'default-{platform.system().lower().replace("darwin", "macos")}.toml'), 'r') as file:
                 default_config = toml.load(file)
             with open(get_config(), 'w') as file:
                 toml.dump(default_config, file)
