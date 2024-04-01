@@ -32,10 +32,12 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.sixth_tab = QtWidgets.QWidget(self)
         self.seventh_tab = QtWidgets.QWidget(self)
         self.eighth_tab = QtWidgets.QWidget(self)
+        self.ninth_tab = QtWidgets.QWidget(self)
 
         self.tab_widget.addTab(self.first_tab, "&Appearance")
         self.tab_widget.addTab(self.second_tab, "&Compositing")
         self.tab_widget.addTab(self.eighth_tab, "&Plugins")
+        self.tab_widget.addTab(self.ninth_tab, "&Plugins v2")
         self.tab_widget.addTab(self.third_tab, "&Search")
         self.tab_widget.addTab(self.seventh_tab, "S&tartup")
         self.tab_widget.addTab(self.fifth_tab, "&Music")
@@ -233,6 +235,32 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.your_pc_info_title.setStyleSheet("font-weight: bold;")
         self.sixth_tab_layout.addWidget(self.your_pc_info_title)
 
+        if platform.system() == "Windows":
+            manufacturer_and_model = f"{wmi.WMI().Win32_ComputerSystem()[0].Manufacturer} - {wmi.WMI().Win32_ComputerSystem()[0].Model}"
+        elif platform.system() == "Linux":
+            try:
+                with open("/sys/class/dmi/id/sys_vendor") as f:
+                    manufacturer = f.read().strip()
+                with open("/sys/class/dmi/id/product_name") as f:
+                    model = f.read().strip()
+                manufacturer_and_model = f"{manufacturer} - {model}"
+            except FileNotFoundError:
+                manufacturer_and_model = "Unknown"
+        elif platform.system() == "Darwin":
+            manufacturer_and_model = "Apple Inc. - Mac"
+        self.your_pc_info = QtWidgets.QLabel(f"""OS: {platform.system()} {platform.release()} 
+OS Build: {platform.version()} 
+Architecture: {platform.machine().replace("AMD64", "x86_64")} 
+CPU: {platform.processor()} 
+RAM: {psutil.virtual_memory().total / 1024**3:.2f} GB
+Disk Space: {psutil.disk_usage('/').total / 1024**3:.2f} GB
+Manufacturer & Model: {manufacturer_and_model}
+Python Version: {platform.python_version()}
+PySide6 Version: {PySide6.__version__}
+Qt Version: {PySide6.QtCore.__version__}
+""", self)
+        self.sixth_tab_layout.addWidget(self.your_pc_info)
+
         # seventh tab
         self.seventh_tab_layout = QtWidgets.QVBoxLayout(self.seventh_tab)
         
@@ -298,37 +326,94 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.default_search_engine_combobox.setCurrentText(config_toml["Settings"]["default_search_engine"].title().replace("Github", "GitHub").replace("Duckduckgo", "DuckDuckGo").replace("Aol", "AOL").replace("Askcom", "Ask.com").replace("Youtube", "YouTube"))
         self.default_search_engine_combobox.currentTextChanged.connect(self.change_default_search_engine)
         self.eighth_tab_layout.addWidget(self.default_search_engine_combobox)
+        
+        # ninth tab
 
-        if platform.system() == "Windows":
-            manufacturer_and_model = f"{wmi.WMI().Win32_ComputerSystem()[0].Manufacturer} - {wmi.WMI().Win32_ComputerSystem()[0].Model}"
-        elif platform.system() == "Linux":
-            try:
-                with open("/sys/class/dmi/id/sys_vendor") as f:
-                    manufacturer = f.read().strip()
-                with open("/sys/class/dmi/id/product_name") as f:
-                    model = f.read().strip()
-                manufacturer_and_model = f"{manufacturer} - {model}"
-            except FileNotFoundError:
-                manufacturer_and_model = "Unknown"
-        elif platform.system() == "Darwin":
-            manufacturer_and_model = "Apple Inc. - Mac"
-        self.your_pc_info = QtWidgets.QLabel(f"""OS: {platform.system()} {platform.release()} 
-OS Build: {platform.version()} 
-Architecture: {platform.machine().replace("AMD64", "x86_64")} 
-CPU: {platform.processor()} 
-RAM: {psutil.virtual_memory().total / 1024**3:.2f} GB
-Disk Space: {psutil.disk_usage('/').total / 1024**3:.2f} GB
-Manufacturer & Model: {manufacturer_and_model}
-Python Version: {platform.python_version()}
-PySide6 Version: {PySide6.__version__}
-Qt Version: {PySide6.QtCore.__version__}
-""", self)
-        self.sixth_tab_layout.addWidget(self.your_pc_info)
+        self.ninth_tab_layout = QtWidgets.QVBoxLayout(self.ninth_tab)
+        self.plugins_layout = QtWidgets.QHBoxLayout()
+
+        self.plugins_label = QtWidgets.QLabel("Plugins", self)
+        self.plugins_label.setStyleSheet("font-weight: bold;")
+        self.ninth_tab_layout.addWidget(self.plugins_label)
+
+        self.plugins_list = QtWidgets.QListWidget(self)
+        self.plugins_list.setStyleSheet("border: 2px solid " + theme_toml[theme_style]["foreground2"] + "; border-radius: 10px; padding: 8px; selection-background-color:" + theme_toml[theme_style]["foreground2"] + ";")
+        self.plugins_list.addItems(["Start Menu Apps", "Maths Processing", "Unit Conversions", "Filesystem Search", "Steam Game Search", "BSManager Instance Search", "Web Search"])
+        self.plugins_list.setMaximumWidth(250)
+        self.plugins_list.currentTextChanged.connect(self.change_plugins)
+        self.plugins_layout.addWidget(self.plugins_list)
+
+        self.plugin_settings_frame = QtWidgets.QFrame(self)
+        self.plugin_settings_frame_layout = QtWidgets.QVBoxLayout(self.plugin_settings_frame)
+        self.plugins_layout.addWidget(self.plugin_settings_frame)
+
+        self.plugin_settings_label = QtWidgets.QLabel("Plugin Settings", self)
+        self.plugin_settings_label.setStyleSheet("font-weight: bold;")
+        self.plugin_settings_frame_layout.addWidget(self.plugin_settings_label)
+
+        self.plugin_settings_layout = QtWidgets.QVBoxLayout()
+        self.plugin_settings_frame_layout.addLayout(self.plugin_settings_layout)
+
+        self.ninth_tab_layout.addLayout(self.plugins_layout)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         if platform.system() == "Windows":
             self.windowFX = WindowEffect()
             self.windowFX.setAeroEffect(self.winId())
+
+    def change_plugins(self):
+        with open(get_config(), 'r+') as file:
+            config = toml.load(file)
+
+            for i in reversed(range(self.plugin_settings_layout.count())):
+                self.plugin_settings_layout.itemAt(i).widget().deleteLater()
+
+            if self.plugins_list.currentItem().text() == "Start Menu Apps":
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Start Menu Apps"))
+                self.search_start_menu_switch = QtWidgets.QCheckBox("Search Start Menu Apps", self)
+                self.search_start_menu_switch.setChecked(config["Settings"]["search_start_menu"])
+                self.search_start_menu_switch.stateChanged.connect(self.change_search_start_menu)
+                self.plugin_settings_layout.addWidget(self.search_start_menu_switch)
+            elif self.plugins_list.currentItem().text() == "Maths Processing":
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Maths Processing"))
+                self.search_calculator_switch = QtWidgets.QCheckBox("Search Calculator", self)
+                self.search_calculator_switch.setChecked(config["Settings"]["search_calculator"])
+                self.search_calculator_switch.stateChanged.connect(self.change_search_calculator)
+                self.plugin_settings_layout.addWidget(self.search_calculator_switch)
+            elif self.plugins_list.currentItem().text() == "Unit Conversions":
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Unit Conversions"))
+                self.search_unit_conversion_switch = QtWidgets.QCheckBox("Search Unit Conversions", self)
+                self.search_unit_conversion_switch.setChecked(config["Settings"]["search_unit_conversion"])
+                self.search_unit_conversion_switch.stateChanged.connect(self.change_search_unit_conversion)
+                self.plugin_settings_layout.addWidget(self.search_unit_conversion_switch)
+            elif self.plugins_list.currentItem().text() == "Filesystem Search":
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Filesystem Search"))
+                self.filesystem_search_switch = QtWidgets.QCheckBox("Search Filesystem", self)
+                self.filesystem_search_switch.setChecked(config["Settings"]["search_filesystem"])
+                self.filesystem_search_switch.stateChanged.connect(self.change_search_filesystem)
+                self.plugin_settings_layout.addWidget(self.filesystem_search_switch)
+            elif self.plugins_list.currentItem().text() == "Steam Game Search":
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Steam Game Search"))
+                self.search_steam_switch = QtWidgets.QCheckBox("Search Steam Games", self)
+                self.search_steam_switch.setChecked(config["Settings"]["search_steam"])
+                self.search_steam_switch.stateChanged.connect(self.change_search_steam)
+                self.plugin_settings_layout.addWidget(self.search_steam_switch)
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Steam Path:", self))
+                self.steam_path_input = QtWidgets.QLineEdit(self)
+                self.steam_path_input.setText(config["Settings"]["steam_path"])
+                self.plugin_settings_layout.addWidget(self.steam_path_input)
+            elif self.plugins_list.currentItem().text() == "BSManager Instance Search":
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("BSManager Instance Search"))
+                self.search_bsman_switch = QtWidgets.QCheckBox("Search BSManager Instances", self)
+                self.search_bsman_switch.setChecked(config["Settings"]["search_bsman"])
+                self.search_bsman_switch.stateChanged.connect(self.change_search_bsman)
+                self.plugin_settings_layout.addWidget(self.search_bsman_switch)
+            elif self.plugins_list.currentItem().text() == "Web Search":
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Web Search"))
+                self.search_web_switch = QtWidgets.QCheckBox("Search Web", self)
+                self.search_web_switch.setChecked(config["Settings"]["search_web"])
+                self.search_web_switch.stateChanged.connect(self.change_search_web)
+                self.plugin_settings_layout.addWidget(self.search_web_switch)
 
     def change_window_animation(self, text):
         with open(get_config(), 'r+') as file:
