@@ -1,6 +1,10 @@
 keyboard
 pyside6
-pywin32
 toml
 pylnk3
 psutil
+winshell
+markdown
+plyer
+setproctitle
+wmi

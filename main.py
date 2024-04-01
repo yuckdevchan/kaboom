@@ -8,7 +8,7 @@ from markdown import markdown
 from pathlib import Path
 
 if platform.system() == "Windows":
-    import keyboard, wmi, win32com, win32gui, win32ui
+    import keyboard, wmi
     from qtacrylic import WindowEffect
 
 from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut, conversion

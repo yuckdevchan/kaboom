@@ -1,4 +1,6 @@
-keyboard
 pyside6
 toml
-dbus
+psutil
+markdown
+plyer
+setproctitle

@@ -1,7 +1,7 @@
 import os, pathlib, subprocess, toml, re, webbrowser, math, platform
 if platform.system() == "Windows":
     import win32com.client as win32
-    import win32gui, winreg
+    import winreg
     from plyer import notification
 elif platform.system() == "Linux":
     import configparser
