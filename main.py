@@ -338,7 +338,8 @@ Qt Version: {PySide6.QtCore.__version__}
 
         self.plugins_list = QtWidgets.QListWidget(self)
         self.plugins_list.setStyleSheet("border: 2px solid " + theme_toml[theme_style]["foreground2"] + "; border-radius: 10px; padding: 8px; selection-background-color:" + theme_toml[theme_style]["foreground2"] + ";")
-        self.plugins_list.addItems(["Start Menu Apps", "Maths Processing", "Unit Conversions", "Filesystem Search", "Steam Game Search", "BSManager Instance Search", "Web Search"])
+        start_menu_thing = "Launchpad" if platform.system() == "Darwin" else "Start Menu"
+        self.plugins_list.addItems([f"{start_menu_thing} Apps", "Maths Processing", "Unit Conversions", "Filesystem Search", "Steam Game Search", "BSManager Instance Search", "Web Search"])
         self.plugins_list.setMaximumWidth(250)
         self.plugins_list.currentTextChanged.connect(self.change_plugins)
         self.plugins_layout.addWidget(self.plugins_list)
@@ -375,7 +376,8 @@ Qt Version: {PySide6.QtCore.__version__}
                     widget.deleteLater()
 
             if self.plugins_list.currentItem().text() == "Start Menu Apps":
-                self.plugin_settings_layout.addWidget(QtWidgets.QLabel("Start Menu Apps"))
+                start_menu_thing = "Launchpad" if platform.system() == "Darwin" else "Start Menu"
+                self.plugin_settings_layout.addWidget(QtWidgets.QLabel(f"Search {start_menu_thing} Apps"))
                 self.search_start_menu_switch = QtWidgets.QCheckBox("Enabled", self)
                 self.search_start_menu_switch.setChecked(config["Settings"]["search_start_menu"])
                 self.search_start_menu_switch.stateChanged.connect(self.change_search_start_menu)
