@@ -283,6 +283,9 @@ def narrow_down(search_text):
         try:
             result = eval(search_text, {"__builtins__": None, **math.__dict__})
             narrowed_list = [str(result)]
+            # add commas to large numbers
+            if len(narrowed_list[0]) > 3:
+                narrowed_list[0] = "{:,}".format(result)
         except Exception as e:
             narrowed_list = ["Error: " + str(e).title()]
     elif search_text.startswith("web:") and config["Settings"]["search_web"]:

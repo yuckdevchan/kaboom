@@ -1331,6 +1331,7 @@ class MainWindow(QtWidgets.QWidget):
 
     def exit_program(self):
         tray.hide()
+        tray.deleteLater()
         os._exit(0)
 
     def escape_pressed(self):
@@ -1422,6 +1423,7 @@ class MainWindow(QtWidgets.QWidget):
         clipboard.setText(text)
         self.button.setText("Copied to Clipboard!")
         QtCore.QTimer.singleShot(1000, lambda: self.button.setText(text))
+        self.search_bar.setText(text)
 
     @QtCore.Slot()
     def on_text_changed(self, text):
@@ -1450,7 +1452,7 @@ class MainWindow(QtWidgets.QWidget):
             self.button.setStyleSheet("border: none; text-align: left;")
             self.button.setToolTip("Click to copy to clipboard.")
             self.button.setStyleSheet(f"border: none; text-align: left; font-size: {config['Settings']['font_size'] * 4}px;")
-            self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(new_text.strip("=")))
+            self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(new_text.strip("=").replace(",", "")))
             self.buttons_layout.addWidget(self.button)
         elif not conversion_result == None and config_toml["Settings"]["search_unit_conversion"]:
             new_text = f"{round(conversion_result[0], 3)} {conversion_result[1]}"
@@ -1602,7 +1604,7 @@ class MainWindow(QtWidgets.QWidget):
                 self.buttons_layout.itemAt(self.current_button_index).widget().click()
             else:
                 if (is_calculation(self.search_bar.text()) and config_toml["Settings"]["search_calculator"]) or conversion(self.search_bar.text()) is not None:
-                    self.copy_calculation_to_clipboard(narrow_down(self.search_bar.text())[0])
+                    self.copy_calculation_to_clipboard(narrow_down(self.search_bar.text())[0].strip("=").replace(",", ""))
                 else:
                     program = narrow_down(self.search_bar.text())[0]
                     if self.search_bar.text() == "exit":
