@@ -255,7 +255,7 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.kaboom_info_title.setStyleSheet("font-weight: bold;")
         self.sixth_tab_layout.addWidget(self.kaboom_info_title)
 
-        self.kaboom_info = QtWidgets.QLabel(f"Config File Location: {os.path.abspath('config.toml')}\nProgram Version: {core_config['Settings']['program_version']}\nAuthor: {core_config['Settings']['author']}\nBug Report URL: {core_config['Settings']['bug_report_url']}", self)
+        self.kaboom_info = QtWidgets.QLabel(f"Times Opened: {config_toml['Stats']['times_opened']}\nConfig File Location: {os.path.abspath('config.toml')}\nProgram Version: {core_config['Settings']['program_version']}\nAuthor: {core_config['Settings']['author']}\nBug Report URL: {core_config['Settings']['bug_report_url']}", self)
         self.sixth_tab_layout.addWidget(self.kaboom_info)
 
         self.your_pc_info_title = QtWidgets.QLabel("Your PC Info:", self)
@@ -1317,6 +1317,12 @@ class MainWindow(QtWidgets.QWidget):
             self.setWindowState(QtCore.Qt.WindowMinimized)
 
     def toggle_show(self):
+        with open (get_config(), 'r+') as file:
+            config_toml = toml.load(file)
+            config_toml["Stats"]["times_opened"] += 1
+            file.seek(0)
+            toml.dump(config_toml, file)
+            file.truncate()
         if self.windowState() == QtCore.Qt.WindowMinimized:
             window_animation = config_toml["Settings"]["window_animation"]
             self.setWindowState(QtCore.Qt.WindowNoState)
@@ -1718,104 +1724,123 @@ if platform.system() == "Linux":
             execute_code(filename)
 
 if __name__ == "__main__":
-    global config_path
-    config_path = get_config()
-    print("Config Directory: " + str(config_path))
-    global default_config_toml
-    with open(Path(get_program_directory(), "configs", f"default-{platform.system().lower().replace('darwin', 'macos')}.toml"), "r") as default_config_file:
-        default_config_toml = toml.load(default_config_file)
-    with open(config_path, 'r+') as file:
-        config = toml.load(file)
-        global config_toml
-        config_toml = config
-        brokie_config = False
-        for key in default_config_toml["Settings"]:
-            if key not in config_toml["Settings"]:
-                brokie_config = True
-                config_toml["Settings"][key] = default_config_toml["Settings"][key]
-        if brokie_config:
-            print("Config file has missing keys or is outdated. Updating config file with new values... (This is expected behaviour)")
-            file.seek(0)
-            toml.dump(config_toml, file)
-            file.truncate()
-            os.execl(sys.executable, sys.executable, *sys.argv)
-        global max_results
-        max_results = config_toml["Settings"]["max_results"]
-    with open(get_core_config(), 'r') as file:
-        global core_config
-        core_config = toml.load(file)
+    try:
+        def update_config():
+            brokie_config = False
+            for key in default_config_toml["Settings"]:
+                if key not in config_toml["Settings"]:
+                    brokie_config = True
+                    config_toml["Settings"][key] = default_config_toml["Settings"][key]
+            for section in default_config_toml:
+                if section not in config_toml:
+                    brokie_config = True
+                    config_toml[section] = default_config_toml[section]
 
-    if platform.system() == "Windows":
-        windows_theme = get_windows_theme()
+            if brokie_config:
+                print("Config file has missing keys or is outdated. Updating config file with new values... (This is expected behaviour)")
+                file.seek(0)
+                toml.dump(config_toml, file)
+                file.truncate()
+                os.execl(sys.executable, sys.executable, *sys.argv)
 
-    app = QApplication([])
-    app.setStyle("macos" if platform.system() == "Darwin" else "Fusion")
-    app.setWindowIcon(QIcon(str(Path(f"{get_program_directory()}/images", f"logo-light.svg"))))
 
-    if platform.system() == "Linux":
-        timer = QTimer()
-        timer.timeout.connect(check_file)
-        timer.start(0.1)
+        global config_path
+        config_path = get_config()
+        print("Config Directory: " + str(config_path))
+        global default_config_toml
+        with open(Path(get_program_directory(), "configs", f"default-{platform.system().lower().replace('darwin', 'macos')}.toml"), "r") as default_config_file:
+            default_config_toml = toml.load(default_config_file)
+        with open(config_path, 'r+') as file:
+            config = toml.load(file)
+            global config_toml
+            config_toml = config
+            update_config()
+            global max_results
+            max_results = config_toml["Settings"]["max_results"]
+        with open(get_core_config(), 'r') as file:
+            global core_config
+            core_config = toml.load(file)
 
-    widget = MainWindow()
-    widget.setWindowFlag(QtCore.Qt.Window)
+        if platform.system() == "Windows":
+            windows_theme = get_windows_theme()
 
-    tray = QSystemTrayIcon()
-    # tray.setIcon(QIcon(str(Path("images", f"logo-{'light' if windows_theme == 'dark' else 'dark'}.svg"))))
-    tray.setIcon(QIcon(str(Path(f"{get_program_directory()}/images", f"logo-dark.svg"))))
-    tray.setVisible(True)
-    tray.setToolTip(f"{core_config['Settings']['program_title']}")
+        app = QApplication([])
+        app.setStyle("macos" if platform.system() == "Darwin" else "Fusion")
+        app.setWindowIcon(QIcon(str(Path(f"{get_program_directory()}/images", f"logo-light.svg"))))
 
-    menu = QMenu()
-    
-    menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"logo-light.svg"))), core_config["Settings"]["program_title"])
+        if platform.system() == "Linux":
+            timer = QTimer()
+            timer.timeout.connect(check_file)
+            timer.start(0.1)
 
-    show_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"hide-light.svg"))), "&Toggle")
-    settings_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"settings-light.svg"))), "&Preferences")
-    notes_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"notes-light.svg"))), "&Notes")
-    reset_position_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"center-light.svg"))), "&Reset Position")
-    exit_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"exit-light.svg"))), "&Quit")
-    tray.setContextMenu(menu)
+        widget = MainWindow()
+        widget.setWindowFlag(QtCore.Qt.Window)
 
-    tray.activated.connect(widget.tray_toggle_window)
-    show_action.triggered.connect(widget.toggle_window)
-    settings_action.triggered.connect(widget.open_settings)
-    notes_action.triggered.connect(widget.open_notes)
-    notes_action.triggered.connect(widget.toggle_show)
-    reset_position_action.triggered.connect(widget.center_window)
-    exit_action.triggered.connect(widget.exit_program)
+        tray = QSystemTrayIcon()
+        # tray.setIcon(QIcon(str(Path("images", f"logo-{'light' if windows_theme == 'dark' else 'dark'}.svg"))))
+        tray.setIcon(QIcon(str(Path(f"{get_program_directory()}/images", f"logo-dark.svg"))))
+        tray.setVisible(True)
+        tray.setToolTip(f"{core_config['Settings']['program_title']}")
 
-    font = QtGui.QFont(config["Settings"]["font_family"], config["Settings"]["font_size"])
-    app.setFont(font)
-    if config["Settings"]["borderless"]:
-        widget.setWindowFlag(Qt.FramelessWindowHint)
-    if config["Settings"]["always_on_top"]:
-        widget.setWindowFlag(Qt.WindowStaysOnTopHint)
-    if config["Settings"]["translucent_background"]:
-        widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-    widget.resize(config["Settings"]["width"], config["Settings"]["height"])
-    widget.setWindowOpacity(config["Settings"]["opacity"])
-    widget.setWindowTitle(core_config["Settings"]["program_title"])
-    if config["Settings"]["sidebar_mode"]:
-        widget.move(0, 0)
-        widget.setFixedHeight(QtWidgets.QApplication.primaryScreen().size().height())
-    else:
-        widget.move((QtWidgets.QApplication.primaryScreen().size().width() - widget.width()) / 2, (QtWidgets.QApplication.primaryScreen().size().height() - widget.height()) / 2)
-    
-    widget.show()
-    if config["Settings"]["window_animation"] == "Fade":
-        widget.setWindowOpacity(0)
-        for i in range(0, round(config["Settings"]["opacity"] * 100), 5):
-            widget.setWindowOpacity(i / 100)
-            time.sleep(0.005)
+        menu = QMenu()
+        
+        menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"logo-light.svg"))), core_config["Settings"]["program_title"])
+
+        show_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"hide-light.svg"))), "&Toggle")
+        settings_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"settings-light.svg"))), "&Preferences")
+        notes_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"notes-light.svg"))), "&Notes")
+        reset_position_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"center-light.svg"))), "&Reset Position")
+        exit_action = menu.addAction(QIcon(str(Path(f"{get_program_directory()}/images", f"exit-light.svg"))), "&Quit")
+        tray.setContextMenu(menu)
+
+        tray.activated.connect(widget.tray_toggle_window)
+        show_action.triggered.connect(widget.toggle_window)
+        settings_action.triggered.connect(widget.open_settings)
+        notes_action.triggered.connect(widget.open_notes)
+        notes_action.triggered.connect(widget.toggle_show)
+        reset_position_action.triggered.connect(widget.center_window)
+        exit_action.triggered.connect(widget.exit_program)
+
+        font = QtGui.QFont(config["Settings"]["font_family"], config["Settings"]["font_size"])
+        app.setFont(font)
+        if config["Settings"]["borderless"]:
+            widget.setWindowFlag(Qt.FramelessWindowHint)
+        if config["Settings"]["always_on_top"]:
+            widget.setWindowFlag(Qt.WindowStaysOnTopHint)
+        if config["Settings"]["translucent_background"]:
+            widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        widget.resize(config["Settings"]["width"], config["Settings"]["height"])
         widget.setWindowOpacity(config["Settings"]["opacity"])
-    if not config["Settings"]["hide_from_taskbar"]:
-        widget.toggle_window()
-        widget.toggle_window()
-    if config["Settings"]["open_in_background"]:
-        widget.toggle_window()
-    if config["Settings"]["bgm"]:
-        import vlc
-        QtCore.QTimer.singleShot(0, widget.play_audio)
+        widget.setWindowTitle(core_config["Settings"]["program_title"])
+        if config["Settings"]["sidebar_mode"]:
+            widget.move(0, 0)
+            widget.setFixedHeight(QtWidgets.QApplication.primaryScreen().size().height())
+        else:
+            widget.move((QtWidgets.QApplication.primaryScreen().size().width() - widget.width()) / 2, (QtWidgets.QApplication.primaryScreen().size().height() - widget.height()) / 2)
+        
+        widget.show()
+        if config["Settings"]["window_animation"] == "Fade":
+            widget.setWindowOpacity(0)
+            for i in range(0, round(config["Settings"]["opacity"] * 100), 5):
+                widget.setWindowOpacity(i / 100)
+                time.sleep(0.005)
+            widget.setWindowOpacity(config["Settings"]["opacity"])
+        if not config["Settings"]["hide_from_taskbar"]:
+            widget.toggle_window()
+            widget.toggle_window()
+        if config["Settings"]["open_in_background"]:
+            widget.toggle_window()
+        if config["Settings"]["bgm"]:
+            import vlc
+            QtCore.QTimer.singleShot(0, widget.play_audio)
 
-    os._exit(app.exec())
+        os._exit(app.exec())
+    except Exception as e:
+        # print type of error
+        error_text = f"{type(e).__name__}: {e}"
+        print(error_text)
+        error_popup = QtWidgets.QMessageBox()
+        error_popup.setWindowTitle("kaboom encountered an Error!")
+        error_popup.setText(error_text)
+        error_popup.setIcon(QtWidgets.QMessageBox.Critical)
+        error_popup.exec()

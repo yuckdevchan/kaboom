@@ -8,6 +8,7 @@ elif platform.system() == "Linux":
 from pathlib import Path
 from scripts.config_tools import get_config, get_core_config, get_program_directory
 from scripts.os_tools import current_user
+from everything_api import search
 from setproctitle import setproctitle
 
 setproctitle("kaboom")
@@ -303,7 +304,10 @@ def narrow_down(search_text):
         if len(narrowed_list) == 0:
             narrowed_list = [core_config["Settings"]["no_results_text"]]
     max_results = config["Settings"]["max_results"]
-    return narrowed_list[:max_results]
+    narrowed_list = narrowed_list[:max_results]
+    if config["Settings"]["search_filesystem"] and len(search_text) > 3:
+        narrowed_list += search(search_text)
+    return narrowed_list
 
 def send_notification(title, message):
     notification.notify(

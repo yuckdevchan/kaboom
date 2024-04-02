@@ -41,6 +41,9 @@ search_bsman = true
 default_search_engine = "google"
 tabtip = false
 
+[Stats]
+times_opened = 0
+
 [Search_Engines]
 google = "https://www.google.com/search?q="
 duckduckgo = "https://duckduckgo.com/?q="
