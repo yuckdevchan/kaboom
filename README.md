@@ -1,6 +1,12 @@
 # kaboom
 explosively fast app launcher using Qt.
 
+## Installation
+### Windows
+1. [Download Python 3.12](https://www.python.org/ftp/python/3.12.2/python-3.12.2-amd64.exe) and install it.
+2. [Download kaboom Installer](https://github.com/yuckdevchan/kaboom/releases/latest/download/kaboom-installer-windows-x86_64.exe) and install it.
+3. Press **Alt-Space** to activate kaboom. The hotkey can be changed in the settings.
+
 ## Usage
 ### Windows
 ```python3 -m pip install -r requirements-windows.txt```
