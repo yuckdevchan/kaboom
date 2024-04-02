@@ -184,6 +184,11 @@ class SettingsPopup2(QtWidgets.QDialog):
         self.no_results_text_input.textChanged.connect(self.change_no_results_text)
         self.third_tab_layout.addWidget(self.no_results_text_input)
 
+        self.tabtip_switch = QtWidgets.QCheckBox("Show Touchscreen Keyboard (Windows Only)", self)
+        self.tabtip_switch.setChecked(config["Settings"]["tabtip"])
+        self.tabtip_switch.stateChanged.connect(self.change_tabtip)
+        self.third_tab_layout.addWidget(self.tabtip_switch)
+
         self.third_tab_layout.addStretch()
 
         # fourth tab
@@ -414,6 +419,17 @@ Qt Version: {PySide6.QtCore.__version__}
         if platform.system() == "Windows":
             self.windowFX = WindowEffect()
             self.windowFX.setAeroEffect(self.winId())
+
+    def change_tabtip(self, state):
+        with open(get_config(), 'r+') as file:
+            config = toml.load(file)
+            if state == 0:
+                config["Settings"]["tabtip"] = False
+            elif state == 2:
+                config["Settings"]["tabtip"] = True
+            file.seek(0)
+            toml.dump(config, file)
+            file.truncate()
 
     def change_suppress_hotkey(self, state):
         with open(get_config(), 'r+') as file:
@@ -1319,7 +1335,7 @@ class MainWindow(QtWidgets.QWidget):
                     self.search_bar.setFocus()
             else:
                 self.search_bar.setFocus()
-            if platform.system() == "Windows":
+            if platform.system() == "Windows" and config["Settings"]["tabtip"]:
                 self.tabtip_process = subprocess.Popen("C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe", shell=True)
 
     def tray_toggle_window(self, reason):
