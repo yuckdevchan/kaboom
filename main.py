@@ -11,7 +11,7 @@ if platform.system() == "Windows":
     import keyboard, wmi
     from qtacrylic import WindowEffect
 
-from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut, conversion
+from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut, conversion, is_youtube_url, download_youtube
 from scripts.config_tools import get_config, get_core_config, get_program_directory, current_user
 
 class SettingsPopup2(QtWidgets.QDialog):
@@ -1010,7 +1010,7 @@ Qt Version: {PySide6.QtCore.__version__}
         # confirmation popup
         reset_popup = QtWidgets.QMessageBox(self)
         reset_popup.setWindowTitle("Warning!")
-        reset_popup.setText("Warning!\nPermanently reset all settings to default?\nThe program will close.")
+        reset_popup.setText(f"Warning!\nPermanently reset all settings to default?\n{core_config['Settings']['program_title']} will restart.")
         reset_popup.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         reset_popup.setDefaultButton(QtWidgets.QMessageBox.No)
         reset_popup.setIcon(QtWidgets.QMessageBox.Warning)
@@ -1023,7 +1023,7 @@ Qt Version: {PySide6.QtCore.__version__}
                 default_config = toml.load(file)
             with open(get_config(), 'w') as file:
                 toml.dump(default_config, file)
-            os._exit(0)
+            os.execl(sys.executable, sys.executable, *sys.argv)
 
     def edit_toml(self):
         os.system("start config.toml")
@@ -1356,6 +1356,9 @@ class MainWindow(QtWidgets.QWidget):
         tray.deleteLater()
         os._exit(0)
 
+    def restart_program(self):
+        os.execl(sys.executable, sys.executable, *sys.argv)
+
     def escape_pressed(self):
         if widget.isVisible():
             self.toggle_window()
@@ -1620,6 +1623,7 @@ class MainWindow(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def on_enter_pressed(self):
+        text = self.search_bar.text()
         if self.isVisible():
             if self.button_selected:
                 self.button_selected = False
@@ -1627,6 +1631,16 @@ class MainWindow(QtWidgets.QWidget):
             else:
                 if (is_calculation(self.search_bar.text()) and config_toml["Settings"]["search_calculator"]) or conversion(self.search_bar.text()) is not None:
                     self.copy_calculation_to_clipboard(narrow_down(self.search_bar.text())[0].strip("=").replace(",", ""))
+                elif text.startswith("$"):
+                    text = text[1:]
+                    if platform.system() == "Windows":
+                        os.system(f"powershell -Command {text}", shell=True)
+                elif is_youtube_url(text):
+                    downloading_status = download_youtube(text, narrow_down(text)[0])[0]
+                    self.remove_buttons()
+                    self.button = QtWidgets.QPushButton(downloading_status, self)
+                    self.button.setStyleSheet(button_qss)
+                    self.buttons_layout.addWidget(self.button)
                 else:
                     program = narrow_down(self.search_bar.text())[0]
                     if self.search_bar.text() == "exit":

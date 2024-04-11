@@ -68,9 +68,11 @@ class MyWidget(QtWidgets.QWidget):
         self.install_button.setEnabled(False)
         self.install_button.setText("Updating...")
         self.text.setText("Updating kaboom...")
+        print("Updating kaboom...")
         os.chdir("C:\\Program Files\\kaboom")
         subprocess.run("git fetch --all")
         self.text.setText("kaboom has been updated.")
+        print("kaboom has been updated.")
         self.finished("updated / repaired")
 
     def install(self):
@@ -78,10 +80,26 @@ class MyWidget(QtWidgets.QWidget):
         self.install_button.setText("Installing...")
         self.text.setText("Checking if git is installed...")
         if os.system("git --version") == 0:
-            self.text.setText("Git is installed. Cloning repository...")
+            self.text.setText("Git is installed. Moving on...")
+            print("Git is installed. Moving on...")
         else:
             self.text.setText("Git is not installed. Installing git...")
+            print("Git is not installed. Installing git...")
             subprocess.run("winget install git -e")
+        if os.path.exists(Path("C:\\Program Files\\Everything\\Everything.exe")):
+            self.text.setText("Everything is installed. Moving on...")
+            print("Everything is installed. Moving on...")
+        else:
+            self.text.setText("Everything is not installed. Installing Everything...")
+            print("Everything is not installed. Installing Everything...")
+            subprocess.run("winget install --id=voidtools.Everything  -e")
+        if os.path.exists(Path("C:\\Program Files\\VideoLAN\\VLC\\vlc.exe")):
+            self.text.setText("VLC is installed. Moving on...")
+            print("VLC is installed. Moving on...")
+        else:
+            self.text.setText("VLC is not installed. Installing VLC...")
+            print("VLC is not installed. Installing VLC...")
+            subprocess.run("winget install --id=videolan.VLC -e")
         QTimer.singleShot(100, self.clone_repo_and_install)
 
     def clone_repo_and_install(self):

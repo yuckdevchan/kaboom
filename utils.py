@@ -129,10 +129,11 @@ def get_steam_appid(game_name):
 def is_calculation(s):
     try:
         # eval(s, {"__builtins__": None, **math.__dict__})
-        if ("*" in s or "/" in s or "-" in s or "+" in s or "sqrt" in s) or (s == "e") or (s == "pi") or ("sin(" in s):
+        if (("*" in s or "/" in s or "-" in s or "+" in s or "sqrt" in s) or (s == "e") or (s == "pi") or ("sin(" in s)) and (not is_youtube_url(s)):
             return True
-    except Exception as e:
+    except Exception:
         return False
+    return False
 
 weight_units = {
     ("kg", "kilogram", "kilograms"): 1,
@@ -273,6 +274,31 @@ def remove_specials(string):
         string = string.replace(char, "")
     return string.lower()
 
+def is_youtube_url(text):
+    text = text.replace("https://", "").replace("http://", "").replace("www.", "")
+    if text.startswith("youtube.com/watch?v=") or text.startswith("youtu.be/") or text.startswith("youtube.com/playlist?list=") or text.startswith("youtube.com/shorts"):
+        return True
+    else:
+        return False
+
+def download_youtube(text, format):
+    url = text
+    download_format = None
+    if format == "Download Video: Original Quality":
+        download_format = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio"
+    elif format == "Download Video: 1080p":
+        download_format = "bestvideo[height<=1080]+bestaudio[ext=m4a]/bestvideo+bestaudio"
+    if format is not None:
+        subprocess.Popen(f'yt-dlp -f "{download_format}" {url}', shell=True)
+        return ["Downloading Video..."]
+    else:
+        if format == "Download Video: 720p":
+            download_format = "bestvideo[height<=720]+bestaudio"
+        elif format == "Download Audio: Original Quality":
+            download_format = "bestaudio"
+        subprocess.Popen(f'yt-dlp -x --audio-format mp3 -f "{download_format}" {url}', shell=True)
+        return ["Downloading Audio..."]
+
 def narrow_down(search_text):
     program_list = list_programs()
     narrowed_list = []
@@ -291,6 +317,8 @@ def narrow_down(search_text):
             narrowed_list = ["Error: " + str(e).title()]
     elif search_text.startswith("web:") and config["Settings"]["search_web"]:
         narrowed_list = ["Press Enter to Search the Web."]
+    elif is_youtube_url(search_text):
+        narrowed_list = ["Download Video: Original Quality", "Download Video: 1080p", "Download Video: 720p", "Download Audio: Original Quality"]
     else:
         for program in program_list:
             if not config["Settings"]["verbatim_search"]:
