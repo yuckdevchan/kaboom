@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QStyleFactory, QApplication, QSystemTrayIcon, QMen
 from PySide6.QtCore import Qt, Slot, QTimer, QUrl, QFileInfo, QThreadPool, QRunnable, QObject, Signal
 from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont, QTextCursor, QAction
 from PySide6.QtMultimedia import QMediaPlayer
+from PySide6.QtPrintSupport import QPrinter, QPrintDialog
 from PySide6 import QtCore, QtWidgets, QtGui
 from markdown import markdown
 from pathlib import Path
@@ -12,12 +13,15 @@ if platform.system() == "Windows":
     import keyboard, wmi
     from qtacrylic import WindowEffect
 
-from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut, conversion, is_youtube_url, download_youtube
+from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut, conversion, is_youtube_url, download_youtube, is_image
 from scripts.config_tools import get_config, get_core_config, get_program_directory, current_user
 
 class ImageViewer(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
+
+        self.setWindowTitle("Image Preview")
+        self.resize(800, 600)
 
         self.layout = QtWidgets.QHBoxLayout(self)
 
@@ -28,18 +32,34 @@ class ImageViewer(QtWidgets.QWidget):
         self.file_menu = self.menubar.addMenu("&File")
         self.open_action = self.file_menu.addAction("&Open")
         self.open_action.triggered.connect(self.select_image)
+        self.open_action.setShortcut("Ctrl+O")
+        self.print_action = self.file_menu.addAction("&Print")
+        self.print_action.setIcon(QtGui.QIcon(str(get_program_directory() / "images" / f"print-{self.theme}.svg")))
+        self.print_action.triggered.connect(self.print_image)
+        self.print_action.setShortcut("Ctrl+P")
         self.exit_action = self.file_menu.addAction("&Exit")
         self.exit_action.setIcon(QtGui.QIcon(str(get_program_directory() / "images" / f"exit-{self.theme}.svg")))
-        self.edit_menu = self.menubar.addMenu("&Edit")
-        self.scaling_menu = self.edit_menu.addMenu("&Scaling Method")
+        self.exit_action.setShortcut("Ctrl+Q")
+        self.exit_action.triggered.connect(self.close)
+        self.view_menu = self.menubar.addMenu("&View")
+        self.scaling_menu = self.view_menu.addMenu("&Scaling Method")
+        self.zoom_in = self.view_menu.addAction("Zoom In")
+        self.zoom_in.triggered.connect(lambda: self.image_view.scale(1.25, 1.25))
+        self.zoom_in.setShortcut("Ctrl+=")
+        self.zoom_out = self.view_menu.addAction("Zoom Out")
+        self.zoom_out.setShortcut("Ctrl+-")
+        self.zoom_out.triggered.connect(lambda: self.image_view.scale(0.8, 0.8))
+        self.zoom_fit = self.view_menu.addAction("Zoom to Fit")
+        self.zoom_fit.setShortcut("Ctrl+0")
         self.scaling_actions = [QAction(method, self) for method in self.scaling_methods]
         for action in self.scaling_actions:
             self.scaling_menu.addAction(action)
-        self.exit_action.triggered.connect(self.close)
+        self.help_menu = self.menubar.addMenu("&Help")
+        self.github_action = self.help_menu.addAction("&GitHub")
+        self.github_action.triggered.connect(lambda: QtGui.QDesktopServices.openUrl(QUrl("https://github.com/yuckdevchan/kaboom")))
+        self.about_action = self.help_menu.addAction("&About")
         self.layout.setMenuBar(self.menubar)
 
-        self.open_action.setShortcut("Ctrl+O")
-        self.exit_action.setShortcut("Ctrl+Q")
         
         self.options_layout = QtWidgets.QVBoxLayout()
         self.layout.addLayout(self.options_layout)
@@ -65,13 +85,28 @@ class ImageViewer(QtWidgets.QWidget):
         self.pathbar_layout.addWidget(self.pathbar_text)
 
         self.pathbar = QtWidgets.QLineEdit()
-        self.pathbar.setText("C:\\Users\\ethan\\Downloads\\gigi-AEgvTRJXm-U-unsplash.jpg")
+        self.pathbar.setText("C:\\Users\\ethan\\Downloads\\arab_steve.png")
         self.pathbar.returnPressed.connect(self.update_image)
         self.pathbar_layout.addWidget(self.pathbar)
 
         self.path_select_button = QtWidgets.QPushButton("Select Image")
         self.path_select_button.clicked.connect(self.select_image)
         self.pathbar_layout.addWidget(self.path_select_button)
+
+        self.view_buttons_layout = QtWidgets.QHBoxLayout()
+        self.options_layout.addLayout(self.view_buttons_layout)
+
+        self.zoom_in_button = QtWidgets.QPushButton("+")
+        self.zoom_in_button.clicked.connect(lambda: self.image_view.scale(1.25, 1.25))
+        self.view_buttons_layout.addWidget(self.zoom_in_button)
+
+        self.zoom_out_button = QtWidgets.QPushButton("-")
+        self.zoom_out_button.clicked.connect(lambda: self.image_view.scale(0.8, 0.8))
+        self.view_buttons_layout.addWidget(self.zoom_out_button)
+
+        self.zoom_fit_button = QtWidgets.QPushButton("Fit")
+        self.zoom_fit_button.clicked.connect(lambda: self.image_view.resetTransform())
+        self.view_buttons_layout.addWidget(self.zoom_fit_button)
 
         self.image_scene = QtWidgets.QGraphicsScene()
         self.image_view = QtWidgets.QGraphicsView(self.image_scene)
@@ -81,12 +116,14 @@ class ImageViewer(QtWidgets.QWidget):
         self.image_view.setInteractive(True)
         self.layout.addWidget(self.image_view)
 
+        # set image view to take up all available space
+        self.layout.setStretch(1, 1)
+
         self.options_layout.addStretch()
         self.layout.addStretch()
 
         QtWidgets.QApplication.instance().installEventFilter(self)
         self.update_image()
-        keyboard.on_release_key('space', self.close_on_space)
         self.toggle_window()
         self.toggle_window()
 
@@ -96,6 +133,16 @@ class ImageViewer(QtWidgets.QWidget):
         else:
             self.show()
 
+    def print_image(self):
+        printer = QPrinter()
+        dialog = QPrintDialog(printer, self)
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            painter = QtGui.QPainter(printer)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+            self.image_scene.render(painter)
+            painter.end()
+
     def select_image(self):
         path = QtWidgets.QFileDialog.getOpenFileName(self, "Select Image", str(Path.home() / "Pictures"), "Images (*.png *.jpg *.jpeg *.bmp *.gif *.tiff)")[0]
         if path:
@@ -103,29 +150,29 @@ class ImageViewer(QtWidgets.QWidget):
             self.update_image()
 
     def update_image(self):
-            scaling_method = self.scaling_combobox.currentText()
-            path = self.pathbar.text()
-            if os.path.exists(path):
-                img = Image.open(path)
-                if scaling_method == "Nearest Neighbor":
-                    resample_method = Image.NEAREST
-                elif scaling_method == "Bilinear":
-                    resample_method = Image.BILINEAR
-                elif scaling_method == "Bicubic":
-                    resample_method = Image.BICUBIC
-                elif scaling_method == "Lanczos":
-                    resample_method = Image.LANCZOS
-
-                img = img.resize((self.width(), self.height()), resample=resample_method)
-
-                qimg = ImageQt.ImageQt(img)
-                pixmap = QtGui.QPixmap.fromImage(qimg)
-
-                # Add the pixmap to the scene
-                self.image_scene.clear()
-                self.image_scene.addPixmap(pixmap)
-            else:
-                self.text.setText("File not found")
+        scaling_method = self.scaling_combobox.currentText()
+        path = self.pathbar.text()
+        if os.path.exists(path):
+            img = Image.open(path)
+            if scaling_method == "Nearest Neighbor":
+                resample_method = Image.NEAREST
+            elif scaling_method == "Bilinear":
+                resample_method = Image.BILINEAR
+            elif scaling_method == "Bicubic":
+                resample_method = Image.BICUBIC
+            elif scaling_method == "Lanczos":
+                resample_method = Image.LANCZOS
+    
+            img = img.resize((self.width(), self.height()), resample=resample_method)
+    
+            qimg = ImageQt.ImageQt(img)
+            pixmap = QtGui.QPixmap.fromImage(qimg)
+    
+            # Add the pixmap to the scene
+            self.image_scene.clear()
+            self.image_scene.addPixmap(pixmap)
+        else:
+            self.text.setText("File not found")
 
     def wheelEvent(self, event):
         # Zoom in or out when the scroll wheel is used
@@ -148,6 +195,9 @@ class ImageViewer(QtWidgets.QWidget):
         # Move scene to old position
         delta = new_pos - old_pos
         self.image_view.translate(delta.x(), delta.y())
+    
+        # Ignore the event to prevent scrolling
+        event.ignore()
 
     def mousePressEvent(self, event):
         self.image_view.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
@@ -156,11 +206,6 @@ class ImageViewer(QtWidgets.QWidget):
     def mouseReleaseEvent(self, event):
         self.image_view.setDragMode(QtWidgets.QGraphicsView.NoDrag)
         super().mouseReleaseEvent(event)
-
-    def close_on_space(self, event):
-        print("Space Released")
-        self.hide()
-        self.parent().show()
 
 class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
@@ -1218,7 +1263,8 @@ class MainWindow(QtWidgets.QWidget):
                 keyboard.add_hotkey("up", self.up_pressed)
             keyboard.add_hotkey("ctrl + x", self.on_yank_key_pressed)
             keyboard.add_hotkey("ctrl + y", self.on_yank_key_pressed)
-            # keyboard.add_hotkey("space", self.open_image_viewer, suppress=True, timeout=10)
+            keyboard.add_hotkey("tab", self.open_image_viewer, suppress=True, timeout=10)
+            keyboard.add_hotkey("tab", self.close_image_viewer, suppress=True, timeout=10, trigger_on_release=True)
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.textbox_layout = QtWidgets.QHBoxLayout()
@@ -1376,7 +1422,7 @@ class MainWindow(QtWidgets.QWidget):
                     ktype = "Unknown"
                 if ktype == "None":
                     ktype = ""
-                title = program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").split(".")[0]
+                title = program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(f".kaboom.{ktype}", "")
                 self.button = QtWidgets.QPushButton(title + "\n- " + ktype, self)
                 self.button.setToolTip("Click to launch")
                 global button_qss
@@ -1669,7 +1715,7 @@ class MainWindow(QtWidgets.QWidget):
                         ktype = "Unknown"
                     if ktype == "None":
                         ktype = ""
-                    title = program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").split(".")[0]
+                    title = program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(f".kaboom.{ktype}", "")
                     self.button = QtWidgets.QPushButton(title + "\n- " + ktype, self)
                     self.button.setToolTip("Click to launch")
                     global button_qss
@@ -1824,9 +1870,21 @@ class MainWindow(QtWidgets.QWidget):
                     self.button = QtWidgets.QPushButton(downloading_status, self)
                     self.button.setStyleSheet(button_qss)
                     self.buttons_layout.addWidget(self.button)
+                elif narrow_down(text)[0].split(".")[-2] == "kaboom" and (narrow_down(text)[0].split(".")[-1] == "File" or narrow_down(text)[0].split(".")[-1] == "Folder" or narrow_down(text)[0].split(".")[-1] == "Image File"):
+                    if narrow_down(text)[0].split(".")[-1] == "Image File":
+                        self.open_image_viewer()
+                    else:
+                        ktype = narrow_down(text)[0].split(".")[-1]
+                        if platform.system() == "Windows":
+                            os.startfile(narrow_down(text)[0].replace(f".kaboom.{ktype}", ""))
+                        elif platform.system() == "Linux":
+                            os.system(f"xdg-open {narrow_down(text)[0].split('.')[0]}")
+                        elif platform.system() == "Darwin":
+                            os.system(f"open {narrow_down(text[0]).split('.')[0]}")
+                        self.toggle_window()
                 else:
-                    program = narrow_down(self.search_bar.text())[0]
-                    if self.search_bar.text() == "exit":
+                    program = narrow_down(text)[0]
+                    if text == "exit":
                         os._exit(0)
                     elif self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == core_config["Settings"]["no_results_text"]:
                         self.search_bar.clear()
@@ -1889,9 +1947,15 @@ class MainWindow(QtWidgets.QWidget):
             self.search_bar.setFocus()
 
     def open_image_viewer(self):
-        self.image_viewer.setWindowFlag(Qt.WindowStaysOnTopHint)
-        self.hide()
-        self.image_viewer.show()
+        if self.isVisible:
+            self.hide()
+            if not self.image_viewer.isVisible():
+                self.image_viewer.show()
+
+    def close_image_viewer(self):
+        if self.image_viewer.isVisible():
+            self.image_viewer.hide()
+            self.show()
 
 if platform.system() == "Linux" or platform.system() == "Darwin":
     def read_value_from_file(filename):
@@ -1945,7 +2009,8 @@ if __name__ == "__main__":
                 file.truncate()
                 os.execl(sys.executable, sys.executable, *sys.argv)
 
-
+        global close_image_viewer_on_space_released
+        close_image_viewer_on_space_released = True
         global config_path
         config_path = get_config()
         print("Config Directory: " + str(config_path))

@@ -10,6 +10,7 @@ from scripts.config_tools import get_config, get_core_config, get_program_direct
 from scripts.os_tools import current_user
 from everything_api import search
 from setproctitle import setproctitle
+from PIL import Image
 
 setproctitle("kaboom")
 
@@ -356,13 +357,22 @@ def narrow_down(search_text):
                 program_ = program
             if search_text_ in program_:
                 narrowed_list.append(program)
-        if len(narrowed_list) == 0:
-            narrowed_list = [core_config["Settings"]["no_results_text"]]
     max_results = config["Settings"]["max_results"]
     narrowed_list = narrowed_list[:max_results]
     if config["Settings"]["search_filesystem"] and len(search_text) > 3:
-        narrowed_list += search(search_text)
+        files_list = search(search_text)
+        files_list = [file + ".kaboom.Image File" if is_image(file) else file + "kaboom.File" for file in files_list]
+        narrowed_list += files_list
+    if len(narrowed_list) == 0:
+        narrowed_list = [core_config["Settings"]["no_results_text"]]
     return narrowed_list
+
+def is_image(path):
+    try:
+        Image.open(path)
+        return True
+    except Exception:
+        return False
 
 def send_notification(title, message):
     notification.notify(

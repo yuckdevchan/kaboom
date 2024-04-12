@@ -4,7 +4,11 @@ from pathlib import Path
 # Load the Everything DLL
 everything_dll = ctypes.WinDLL(os.path.abspath(Path('Everything64.dll')))
 
-def search(query: str):
+def search(query: str) -> list:
+    directory = Path.home()
+    # Prepend the directory and a wildcard to the search query
+    query = f"{directory}\\*{query}*"
+
     # Set the search query
     everything_dll.Everything_SetSearchW(query)
 
