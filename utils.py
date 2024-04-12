@@ -45,7 +45,19 @@ def launch_program(program):
     subprocess.Popen(program)
 
 def launch_program_cwd(program, cwd):
+    print("OK")
     subprocess.Popen(program, cwd=cwd)
+
+def list_msstore_apps() -> list:
+    msstore_apps = []
+    if platform.system() == "Windows":
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Software\\Classes\\ActivatableClasses\\Package')
+        for i in range(winreg.QueryInfoKey(key)[0]):
+            subkey_name = winreg.EnumKey(key, i)
+            if subkey_name.startswith("microsoft.windowsstore"):
+                continue
+            msstore_apps.append(subkey_name + ".kaboom.Microsoft Store App")
+    return msstore_apps
 
 def list_programs() -> list:
     max_results = config["Settings"]["max_results"]
@@ -74,15 +86,17 @@ def list_programs() -> list:
                 if file.endswith(".app"):
                     program_list.append(file)
                 program_list.append(file)
+    program_list = [program + ".kaboom.Program" for program in program_list]
     kaboom_programs = [
-        f"Open {core_config['Settings']['program_title']} Settings.kaboom",
-        f"Reset {core_config['Settings']['program_title']} Settings.kaboom",
-        f"Exit {core_config['Settings']['program_title']}.kaboom",
-        f"Open {core_config['Settings']['program_title']} Notes.kaboom",
+        f"Open {core_config['Settings']['program_title']} Settings.kaboom.Kaboom Settings",
+        f"Reset {core_config['Settings']['program_title']} Settings.kaboom.Kaboom Settings",
+        f"Exit {core_config['Settings']['program_title']}.kaboom.Kaboom Settings",
+        f"Open {core_config['Settings']['program_title']} Notes.kaboom.Kaboom Settings",
     ]
     program_list += kaboom_programs
     program_list = sorted(program_list)
-    return program_list
+    apps_list = list_msstore_apps()
+    return program_list + apps_list
 
 def list_steam_games(search_text):
     steam_path = config["Settings"]["steam_path"].replace("<CURRENT_USER>", current_user())
@@ -92,7 +106,7 @@ def list_steam_games(search_text):
         narrowed_list = []
         for game in steam_games:
             if remove_specials(search_text) in remove_specials(game):
-                narrowed_list.append(game)
+                narrowed_list.append(game + ".kaboom.Steam Game")
     else:
         narrowed_list = ["No Steam Games Found."]
     return narrowed_list
@@ -108,7 +122,7 @@ def list_bs_instances(search_text):
                     narrowed_list.append(instance)
     else:
         if platform.system() == "Windows":
-            narrowed_list = ["No Beat Saber Versions Found."]
+            narrowed_list = ["No Beat Saber Versions Found..kaboom.None"]
         else:
             narrowed_list = [f"Launching Beat Saber Instances is not supported on {platform.system()}."]
     return narrowed_list
@@ -205,7 +219,20 @@ time_units = {
     ("y", "year", "years"): 0.0000000316881,
 }
 
-units = [weight_units, length_units, volume_units, time_units]
+byte_units = {
+    ("bit", "bits"): 1,
+    ("byte", "bytes"): 0.125,
+    ("kb", "kilobyte", "kilobytes"): 0.00012207,
+    ("mb", "megabyte", "megabytes"): 1.1921e-7,
+    ("gb", "gigabyte", "gigabytes"): 1.16415e-10,
+    ("tb", "terabyte", "terabytes"): 1.13687e-13,
+    ("pb", "petabyte", "petabytes"): 1.11022e-16,
+    ("eb", "exabyte", "exabytes"): 1.0842e-19,
+    ("zb", "zettabyte", "zettabytes"): 1.05879e-22,
+    ("yb", "yottabyte", "yottabytes"): 1.03398e-25,
+}
+
+units = [weight_units, length_units, volume_units, time_units, byte_units]
 
 def conversion(text):
     text = text.lower()

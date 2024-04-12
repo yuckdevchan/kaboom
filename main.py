@@ -1,11 +1,12 @@
 import sys, toml, os, platform, subprocess, signal, psutil, PySide6, time, threading
 from PySide6.QtWidgets import QStyleFactory, QApplication, QSystemTrayIcon, QMenu, QFileIconProvider, QTextBrowser, QTextEdit
 from PySide6.QtCore import Qt, Slot, QTimer, QUrl, QFileInfo, QThreadPool, QRunnable, QObject, Signal
-from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont, QTextCursor
+from PySide6.QtGui import QIcon, QPainterPath, QColor, QFont, QTextCursor, QAction
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6 import QtCore, QtWidgets, QtGui
 from markdown import markdown
 from pathlib import Path
+from PIL import Image, ImageQt
 
 if platform.system() == "Windows":
     import keyboard, wmi
@@ -13,6 +14,153 @@ if platform.system() == "Windows":
 
 from utils import list_programs, narrow_down, determine_program, load_qt_styles, load_themes, is_calculation, get_windows_theme, program_name_to_shortcut, conversion, is_youtube_url, download_youtube
 from scripts.config_tools import get_config, get_core_config, get_program_directory, current_user
+
+class ImageViewer(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.layout = QtWidgets.QHBoxLayout(self)
+
+        self.scaling_methods = ["Nearest Neighbor", "Bilinear", "Bicubic", "Lanczos"]
+        self.theme = "light"
+
+        self.menubar = QtWidgets.QMenuBar()
+        self.file_menu = self.menubar.addMenu("&File")
+        self.open_action = self.file_menu.addAction("&Open")
+        self.open_action.triggered.connect(self.select_image)
+        self.exit_action = self.file_menu.addAction("&Exit")
+        self.exit_action.setIcon(QtGui.QIcon(str(get_program_directory() / "images" / f"exit-{self.theme}.svg")))
+        self.edit_menu = self.menubar.addMenu("&Edit")
+        self.scaling_menu = self.edit_menu.addMenu("&Scaling Method")
+        self.scaling_actions = [QAction(method, self) for method in self.scaling_methods]
+        for action in self.scaling_actions:
+            self.scaling_menu.addAction(action)
+        self.exit_action.triggered.connect(self.close)
+        self.layout.setMenuBar(self.menubar)
+
+        self.open_action.setShortcut("Ctrl+O")
+        self.exit_action.setShortcut("Ctrl+Q")
+        
+        self.options_layout = QtWidgets.QVBoxLayout()
+        self.layout.addLayout(self.options_layout)
+
+        self.scaling_method_layout = QtWidgets.QHBoxLayout()
+        self.options_layout.addLayout(self.scaling_method_layout)
+
+        self.scaling_method_text = QtWidgets.QLabel("Scaling Method")
+        self.scaling_method_layout.addWidget(self.scaling_method_text)
+
+        self.scaling_combobox = QtWidgets.QComboBox()
+        self.scaling_combobox.addItems(self.scaling_methods)
+        self.scaling_combobox.setCurrentIndex(1)
+        self.scaling_combobox.currentIndexChanged.connect(self.update_image)
+        self.scaling_method_layout.addWidget(self.scaling_combobox)
+
+        self.scaling_method_layout.addStretch()
+
+        self.pathbar_layout = QtWidgets.QHBoxLayout()
+        self.options_layout.addLayout(self.pathbar_layout)
+
+        self.pathbar_text = QtWidgets.QLabel("Image Path")
+        self.pathbar_layout.addWidget(self.pathbar_text)
+
+        self.pathbar = QtWidgets.QLineEdit()
+        self.pathbar.setText("C:\\Users\\ethan\\Downloads\\gigi-AEgvTRJXm-U-unsplash.jpg")
+        self.pathbar.returnPressed.connect(self.update_image)
+        self.pathbar_layout.addWidget(self.pathbar)
+
+        self.path_select_button = QtWidgets.QPushButton("Select Image")
+        self.path_select_button.clicked.connect(self.select_image)
+        self.pathbar_layout.addWidget(self.path_select_button)
+
+        self.image_scene = QtWidgets.QGraphicsScene()
+        self.image_view = QtWidgets.QGraphicsView(self.image_scene)
+        self.image_view.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.image_view.setStyleSheet("QScrollBar:vertical { width: 10px; } QScrollBar:horizontal { height: 10px; }")
+        self.image_view.setDragMode(QtWidgets.QGraphicsView.NoDrag)
+        self.image_view.setInteractive(True)
+        self.layout.addWidget(self.image_view)
+
+        self.options_layout.addStretch()
+        self.layout.addStretch()
+
+        QtWidgets.QApplication.instance().installEventFilter(self)
+        self.update_image()
+        keyboard.on_release_key('space', self.close_on_space)
+        self.toggle_window()
+        self.toggle_window()
+
+    def toggle_window(self):
+        if self.isVisible():
+            self.hide()
+        else:
+            self.show()
+
+    def select_image(self):
+        path = QtWidgets.QFileDialog.getOpenFileName(self, "Select Image", str(Path.home() / "Pictures"), "Images (*.png *.jpg *.jpeg *.bmp *.gif *.tiff)")[0]
+        if path:
+            self.pathbar.setText(path.replace("/", "\\"))
+            self.update_image()
+
+    def update_image(self):
+            scaling_method = self.scaling_combobox.currentText()
+            path = self.pathbar.text()
+            if os.path.exists(path):
+                img = Image.open(path)
+                if scaling_method == "Nearest Neighbor":
+                    resample_method = Image.NEAREST
+                elif scaling_method == "Bilinear":
+                    resample_method = Image.BILINEAR
+                elif scaling_method == "Bicubic":
+                    resample_method = Image.BICUBIC
+                elif scaling_method == "Lanczos":
+                    resample_method = Image.LANCZOS
+
+                img = img.resize((self.width(), self.height()), resample=resample_method)
+
+                qimg = ImageQt.ImageQt(img)
+                pixmap = QtGui.QPixmap.fromImage(qimg)
+
+                # Add the pixmap to the scene
+                self.image_scene.clear()
+                self.image_scene.addPixmap(pixmap)
+            else:
+                self.text.setText("File not found")
+
+    def wheelEvent(self, event):
+        # Zoom in or out when the scroll wheel is used
+        zoom_in_factor = 1.25
+        zoom_out_factor = 1 / zoom_in_factor
+    
+        # Save the scene pos
+        old_pos = self.image_view.mapToScene(event.position().toPoint())
+    
+        # Zoom
+        if event.angleDelta().y() > 0:
+            zoom_factor = zoom_in_factor
+        else:
+            zoom_factor = zoom_out_factor
+        self.image_view.scale(zoom_factor, zoom_factor)
+    
+        # Get the new position
+        new_pos = self.image_view.mapToScene(event.position().toPoint())
+    
+        # Move scene to old position
+        delta = new_pos - old_pos
+        self.image_view.translate(delta.x(), delta.y())
+
+    def mousePressEvent(self, event):
+        self.image_view.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self.image_view.setDragMode(QtWidgets.QGraphicsView.NoDrag)
+        super().mouseReleaseEvent(event)
+
+    def close_on_space(self, event):
+        print("Space Released")
+        self.hide()
+        self.parent().show()
 
 class SettingsPopup2(QtWidgets.QDialog):
     def __init__(self, parent=None):
@@ -1070,6 +1218,7 @@ class MainWindow(QtWidgets.QWidget):
                 keyboard.add_hotkey("up", self.up_pressed)
             keyboard.add_hotkey("ctrl + x", self.on_yank_key_pressed)
             keyboard.add_hotkey("ctrl + y", self.on_yank_key_pressed)
+            # keyboard.add_hotkey("space", self.open_image_viewer, suppress=True, timeout=10)
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.textbox_layout = QtWidgets.QHBoxLayout()
@@ -1219,9 +1368,16 @@ class MainWindow(QtWidgets.QWidget):
             program_list = sorted([program.rsplit("\\")[-1] for program in program_list])
             text = ""
             for i in range(len(program_list)):
-                # text += program_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
-                # add button
-                self.button = QtWidgets.QPushButton(program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", ""), self)
+                # ktype is the type of program or app that the button should be. For example, a program will be called something like Firefox.kaboom.Program and a file will be called something like Google Chrome.exe.kaboom.File
+                # find ktype by splitting by the second last dot and seeing if the second last element is "kaboom" and then if it is, then setting the ktype to the last element by splitting with dot
+                try:
+                    ktype = program_list[i].split(".")[-1] if program_list[i].split(".")[-2] == "kaboom" else "Unknown"
+                except:
+                    ktype = "Unknown"
+                if ktype == "None":
+                    ktype = ""
+                title = program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").split(".")[0]
+                self.button = QtWidgets.QPushButton(title + "\n- " + ktype, self)
                 self.button.setToolTip("Click to launch")
                 global button_qss
                 button_qss = "QPushButton { border: none; text-align: left; } QPushButton:hover { background-color: " + theme_toml[theme_style]["foreground2"] + "; } QPushButton:pressed { background-color: #44475A; }"
@@ -1232,7 +1388,6 @@ class MainWindow(QtWidgets.QWidget):
                     QThreadPool.globalInstance().start(loader)
                 self.button.clicked.connect(lambda checked=False, text=program_list[i]: self.on_button_clicked(text))
                 self.buttons_layout.addWidget(self.button)
-            # self.change_text(text)
 
         self.m_drag = False
         self.m_DragPosition = QtCore.QPoint()
@@ -1244,6 +1399,8 @@ class MainWindow(QtWidgets.QWidget):
             if platform.system() == "Windows":
                 self.windowFX = WindowEffect()
                 self.windowFX.setAeroEffect(self.winId())
+
+        self.image_viewer = ImageViewer()
 
     def set_icon(self, icon, button):
         button.setIcon(icon)
@@ -1258,14 +1415,14 @@ class MainWindow(QtWidgets.QWidget):
         program = narrow_down(text)[0]
         if self.buttons_layout.count() == 1 and self.buttons_layout.itemAt(0).widget().text() == core_config["Settings"]["no_results_text"]:
             self.search_bar.clear()
-        elif program.endswith(".kaboom"):
-            if program == "Open kaboom Settings.kaboom":
+        elif program.endswith(".kaboom.Kaboom Settings"):
+            if program == "Open kaboom Settings.kaboom.Kaboom Settings":
                 self.search_bar.clear()
                 self.open_settings()
-            elif program == "Reset kaboom Settings.kaboom":
+            elif program == "Reset kaboom Settings.kaboom.Kaboom Settings":
                 self.search_bar.clear()
                 self.reset_settings_confirmation()
-            elif program == "Exit kaboom.kaboom":
+            elif program == "Exit kaboom.kaboom.Kaboom Settings":
                 self.exit_program()
         else:
             determine_program(program)
@@ -1315,6 +1472,7 @@ class MainWindow(QtWidgets.QWidget):
             if config["Settings"]["hide_from_taskbar"]:
                 self.hide()
             self.setWindowState(QtCore.Qt.WindowMinimized)
+            self.search_bar.clearFocus()
 
     def toggle_show(self):
         with open (get_config(), 'r+') as file:
@@ -1460,6 +1618,8 @@ class MainWindow(QtWidgets.QWidget):
         narrowed_list = narrow_down(text)
         conversion_result = conversion(text)
         if is_calculation(self.search_bar.text()) and config_toml["Settings"]["search_calculator"]:
+            self.filler_label = QtWidgets.QLabel("", self)
+            self.buttons_layout.addWidget(self.filler_label)
             new_text = narrowed_list[0]
             if ("life" in self.search_bar.text() or "universe" in self.search_bar.text() or "everything" in self.search_bar.text()) and ("*" in self.search_bar.text() or "+" in self.search_bar.text() or "-" in self.search_bar.text() or "/" in self.search_bar.text()):
                 # self.label.setStyleSheet(f"font-size: {config['Settings']['font_size'] * 4}px;")
@@ -1479,24 +1639,47 @@ class MainWindow(QtWidgets.QWidget):
             self.button.setStyleSheet(f"border: none; text-align: left; font-size: {config['Settings']['font_size'] * 4}px;")
             self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(new_text.strip("=").replace(",", "")))
             self.buttons_layout.addWidget(self.button)
+            # add ktype label
+            ktype = "- Calculation"
+            self.ktype_label = QtWidgets.QLabel(ktype, self)
+            self.buttons_layout.addWidget(self.ktype_label)
         elif not conversion_result == None and config_toml["Settings"]["search_unit_conversion"]:
+            self.filler_label = QtWidgets.QLabel("", self)
+            self.buttons_layout.addWidget(self.filler_label)
             new_text = f"{round(conversion_result[0], 3)} {conversion_result[1]}"
             self.button = QtWidgets.QPushButton(new_text, self)
             self.button.setStyleSheet(f"border: none; text-align: left; font-size: {config['Settings']['font_size'] * 4}px;")
             self.button.setToolTip("Click to copy to clipboard.")
             self.button.clicked.connect(lambda: self.copy_calculation_to_clipboard(conversion_result[0]))
             self.buttons_layout.addWidget(self.button)
+            # add ktype label
+            ktype = "- Unit Conversion"
+            self.ktype_label = QtWidgets.QLabel(ktype, self)
+            self.buttons_layout.addWidget(self.ktype_label)
         else:
             if config_toml["Settings"]["search_start_menu"]:
                 new_text = ""
-                for i in range(len(narrowed_list)):
-                    # new_text += narrowed_list[i].replace(".lnk", "").replace(".desktop", "").rsplit("\\")[-1] + "\n"
-                    self.button = QtWidgets.QPushButton(narrowed_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").replace(".kaboom", "").rsplit("\\")[-1], self)
+                program_list = narrowed_list
+                for i in range(len(program_list)):
+                    # ktype is the type of program or app that the button should be. For example, a program will be called something like Firefox.kaboom.Program and a file will be called something like Google Chrome.exe.kaboom.File
+                    # find ktype by splitting by the second last dot and seeing if the second last element is "kaboom" and then if it is, then setting the ktype to the last element by splitting with dot
+                    try:
+                        ktype = program_list[i].split(".")[-1] if program_list[i].split(".")[-2] == "kaboom" else "Unknown"
+                    except:
+                        ktype = "Unknown"
+                    if ktype == "None":
+                        ktype = ""
+                    title = program_list[i].replace(".lnk", "").replace(".desktop", "").replace(".app", "").split(".")[0]
+                    self.button = QtWidgets.QPushButton(title + "\n- " + ktype, self)
                     self.button.setToolTip("Click to launch")
+                    global button_qss
+                    button_qss = "QPushButton { border: none; text-align: left; } QPushButton:hover { background-color: " + theme_toml[theme_style]["foreground2"] + "; } QPushButton:pressed { background-color: #44475A; }"
                     self.button.setStyleSheet(button_qss)
-                    self.button.clicked.connect(lambda checked=False, text=narrowed_list[i]: self.on_button_clicked(text))
                     if config["Settings"]["program_icons"]:
-                        self.button.setIcon(self.get_ico_from_shortcut(str(program_name_to_shortcut(narrowed_list[i]))))
+                        loader = IconLoader(str(program_name_to_shortcut(program_list[i])))
+                        loader.signals.finished.connect(lambda icon, button=self.button: self.set_icon(icon, button))
+                        QThreadPool.globalInstance().start(loader)
+                    self.button.clicked.connect(lambda checked=False, text=program_list[i]: self.on_button_clicked(text))
                     self.buttons_layout.addWidget(self.button)
 
     def open_notes(self):
@@ -1705,7 +1888,12 @@ class MainWindow(QtWidgets.QWidget):
             self.search_bar.clear()
             self.search_bar.setFocus()
 
-if platform.system() == "Linux":
+    def open_image_viewer(self):
+        self.image_viewer.setWindowFlag(Qt.WindowStaysOnTopHint)
+        self.hide()
+        self.image_viewer.show()
+
+if platform.system() == "Linux" or platform.system() == "Darwin":
     def read_value_from_file(filename):
         with open(filename, 'r') as file:
             data = file.read().strip()
